@@ -1,0 +1,30 @@
+{
+  "nested": {
+    "Feed": {
+      "fields": {
+        "path": {
+          "rule": "required",
+          "type": "string",
+          "id": 1
+        },
+        "key": {
+          "rule": "required",
+          "type": "bytes",
+          "id": 2
+        },
+        "secretKey": {
+          "type": "bytes",
+          "id": 3
+        },
+        "valueEncoding": {
+          "type": "string",
+          "id": 4
+        },
+        "metadata": {
+          "type": "bytes",
+          "id": 5
+        }
+      }
+    }
+  }
+}

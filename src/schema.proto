@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+message Feed {
+  required string path = 1;
+  required bytes key = 2;
+  bytes secretKey = 3;
+  string valueEncoding = 4;
+  bytes metadata = 5;
+}

@@ -1,0 +1,67 @@
+{
+  "name": "@dxos/feed-store",
+  "version": "1.0.0",
+  "description": "A consistent store for your hypercore feeds.",
+  "homepage": "https://github.com/dxos/feed-store#readme",
+  "bugs": {
+    "url": "https://github.com/dxos/feed-store/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dxos/feed-store.git"
+  },
+  "license": "GPL-3.0",
+  "main": "index.js",
+  "browser": "dist/feed-store.js",
+  "files": [
+    "dist",
+    "index.js"
+  ],
+  "browserslist": [
+    "> 5%"
+  ],
+  "scripts": {
+    "lint": "eslint 'src/**/*.js'",
+    "build": "npm run clean && npm run build:protobuf && npm run build:babel",
+    "build:babel": "babel ./src --out-dir ./dist --ignore \"**/*.test.js\" --source-maps",
+    "build:protobuf": "pbjs -t json src/schema.proto -o src/schema.json",
+    "clean": "del-cli dist",
+    "test": "jest --verbose --passWithNoTests src",
+    "posttest": "npm run lint",
+    "prepublishOnly": "npm run test && npm run build"
+  },
+  "dependencies": {
+    "@wirelineio/codec-protobuf": "^0.2.23",
+    "buffer-json-encoding": "^1.0.2",
+    "debug": "^4.1.1",
+    "hypercore": "^6.24.0",
+    "hypercore-crypto": "^1.0.0",
+    "hypertrie": "^3.6.1",
+    "mutexify": "^1.2.0",
+    "pify": "^4.0.1",
+    "random-access-file": "^2.1.0",
+    "source-map-support": "^0.5.12"
+  },
+  "devDependencies": {
+    "@babel/cli": "7.4.4",
+    "@babel/core": "^7.4.5",
+    "@babel/plugin-proposal-export-default-from": "^7.5.2",
+    "@babel/preset-env": "^7.4.5",
+    "babel-eslint": "^10.0.2",
+    "babel-jest": "^24.8.0",
+    "babel-plugin-add-module-exports": "^1.0.2",
+    "babel-plugin-inline-import": "^3.0.0",
+    "del-cli": "^2.0.0",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-plugin-import": "^2.17.2",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-react": "^7.12.4",
+    "eslint": "^5.16.0",
+    "jest": "^24.5.0",
+    "random-access-memory": "^3.1.1",
+    "tempy": "^0.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
