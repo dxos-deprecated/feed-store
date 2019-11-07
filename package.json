@@ -26,7 +26,7 @@
     "build:babel": "babel ./src --out-dir ./dist --ignore \"**/*.test.js\" --source-maps",
     "build:protobuf": "pbjs -t json src/schema.proto -o src/schema.json",
     "clean": "del-cli dist",
-    "test": "jest --verbose --passWithNoTests src",
+    "test": "npm run build:protobuf && jest --verbose --passWithNoTests src",
     "posttest": "npm run lint",
     "prepublishOnly": "npm run test && npm run build"
   },
