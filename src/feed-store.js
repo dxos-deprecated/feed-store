@@ -242,8 +242,8 @@ class FeedStore extends EventEmitter {
    * @param {Object} options.metadata
    * @returns {Hypercore}
    */
-  async openFeed(path, options = {}) {
-    assert(path, 'The path is required.')
+  async openFeed (path, options = {}) {
+    assert(path, 'The path is required.');
 
     await this.ready();
 
@@ -272,8 +272,8 @@ class FeedStore extends EventEmitter {
    * @param {String} path
    * @returns {Promise}
    */
-  async closeFeed(path) {
-    assert(path, 'The path is required.')
+  async closeFeed (path) {
+    assert(path, 'The path is required.');
 
     await this.ready();
 
@@ -294,8 +294,8 @@ class FeedStore extends EventEmitter {
    * @param {String} path
    * @returns {Promise}
    */
-  async deleteDescriptor(path) {
-    assert(path, 'The path is required.')
+  async deleteDescriptor (path) {
+    assert(path, 'The path is required.');
 
     await this.ready();
 
@@ -347,7 +347,7 @@ class FeedStore extends EventEmitter {
    * @param {Object} options.metadata
    * @returns {FeedDescriptor}
    */
-  _createDescriptor(path, options) {
+  _createDescriptor (path, options) {
     const defaultOptions = this._defaultFeedOptions;
 
     const { key, secretKey, metadata } = options;
