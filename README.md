@@ -116,9 +116,11 @@ const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag ==
 
 Wait for feedStore to be ready.
 
-#### `const descriptors = feedStore.getDescriptors()`
+#### `const descriptor = FeedStore.getDescriptor(feed)`
 
-Returns a list of descriptors.
+Each feed created by FeedStore set a unique private Symbol inside with the descriptor information.
+
+Using the static method `getDescriptor` you can get that information.
 
 A `descriptor` provides the next information:
 
@@ -130,6 +132,10 @@ A `descriptor` provides the next information:
 - `opened: Boolean`
 - `valueEncoding: String|Codec`
 - `metadata: Object`
+
+#### `const descriptors = feedStore.getDescriptors()`
+
+Returns a list of descriptors.
 
 #### `const descriptors = feedStore.getOpenedDescriptors()`
 
