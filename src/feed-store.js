@@ -8,7 +8,6 @@ import assert from 'assert';
 import Codec from '@wirelineio/codec-protobuf';
 
 import { FeedDescriptor, getDescriptor } from './feed-descriptor';
-import { keyToHex } from './keys';
 import IndexDB from './index-db';
 import schema from './schema.json';
 
@@ -252,11 +251,11 @@ class FeedStore extends EventEmitter {
     let descriptor = this.getDescriptorByPath(path);
 
     if (descriptor && key && !key.equals(descriptor.key)) {
-      throw new Error(`FeedStore: You are trying to open a feed with a different public key "${keyToHex(stat.key)}".`);
+      throw new Error(`FeedStore: You are trying to open a feed with a different public key "${stat.key.toString('hex')}".`);
     }
 
     if (!descriptor && key && this.getDescriptorByKey(key)) {
-      throw new Error(`FeedStore: There is already a feed registered with the public key "${keyToHex(stat.key)}"`);
+      throw new Error(`FeedStore: There is already a feed registered with the public key "${stat.key.toString('hex')}"`);
     }
 
     if (!descriptor) {
@@ -301,9 +300,9 @@ class FeedStore extends EventEmitter {
     try {
       release = await descriptor.lock();
 
-      await this._indexDB.delete(`${STORE_NAMESPACE}/${keyToHex(descriptor.key)}`);
+      await this._indexDB.delete(`${STORE_NAMESPACE}/${descriptor.key.toString('hex')}`);
 
-      this._descriptors.delete(keyToHex(descriptor.discoveryKey));
+      this._descriptors.delete(descriptor.discoveryKey.toString('hex'));
 
       this.emit('descriptor-remove', descriptor);
       await release();
@@ -364,7 +363,7 @@ class FeedStore extends EventEmitter {
     });
 
     this._descriptors.set(
-      keyToHex(descriptor.discoveryKey),
+      descriptor.discoveryKey.toString('hex'),
       descriptor
     );
 
@@ -413,7 +412,7 @@ class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async _persistFeed(descriptor) {
-    const key = `${STORE_NAMESPACE}/${keyToHex(descriptor.key)}`;
+    const key = `${STORE_NAMESPACE}/${descriptor.key.toString('hex')}`;
     const data = await this._indexDB.get(key);
     const newData = descriptor.serialize();
 

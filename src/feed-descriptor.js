@@ -11,7 +11,6 @@ import raf from 'random-access-file';
 import pify from 'pify';
 import bufferJson from 'buffer-json-encoding';
 
-import { keyToHex, getDiscoveryKey } from './keys';
 import Locker from './locker';
 
 const kDescriptor = Symbol('descriptor');
@@ -61,10 +60,10 @@ class FeedDescriptor {
       this._secretKey = secretKey;
     }
 
-    this._discoveryKey = getDiscoveryKey(this._key);
+    this._discoveryKey = crypto.discoveryKey(this._key);
 
     if (!this._path) {
-      this._path = keyToHex(this._key);
+      this._path = this._key.toString('hex');
     }
 
     this._locker = new Locker();
@@ -111,7 +110,7 @@ class FeedDescriptor {
    * @type {Buffer}
    */
   get discoveryKey() {
-    return getDiscoveryKey(this._discoveryKey);
+    return this._discoveryKey;
   }
 
   /**
@@ -173,7 +172,7 @@ class FeedDescriptor {
 
     try {
       this._feed = hypercore(
-        this._createStorage(keyToHex(this._key)),
+        this._createStorage(this._key.toString('hex')),
         this._key,
         {
           secretKey: this._secretKey,
