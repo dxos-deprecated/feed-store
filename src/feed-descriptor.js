@@ -129,7 +129,7 @@ class FeedDescriptor {
   }
 
   /**
-   * Serialize the stats need it for encoding.
+   * Serialize the options need it for encoding.
    *
    * @returns {Object}
    */
@@ -155,7 +155,7 @@ class FeedDescriptor {
   }
 
   /**
-   * Open an Hypercore feed based on the related stat options.
+   * Open an Hypercore feed based on the related feed options.
    *
    * This is an atomic operation, FeedDescriptor makes
    * sure that the feed is not going to open again.

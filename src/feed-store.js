@@ -87,7 +87,7 @@ class FeedStore extends EventEmitter {
   }
 
   /**
-   * Initialized FeedStore reading the persisted stats and created each FeedDescriptor.
+   * Initialized FeedStore reading the persisted options and created each FeedDescriptor.
    *
    * @returns {Promise}
    */
@@ -96,9 +96,9 @@ class FeedStore extends EventEmitter {
 
     await Promise.all(
       list.map(async (data) => {
-        const { path, ...stat } = data;
+        const { path, ...options } = data;
 
-        this._createDescriptor(path, stat);
+        this._createDescriptor(path, options);
       })
     );
 
@@ -236,30 +236,32 @@ class FeedStore extends EventEmitter {
    * Similar to fs.open
    *
    * @param {String} path
-   * @param {Object} stat
-   * @param {Buffer} stat.key
-   * @param {Buffer} stat.secretKey
-   * @param {String} stat.valueEncoding
-   * @param {Object} stat.metadata
+   * @param {Object} options
+   * @param {Buffer} options.key
+   * @param {Buffer} options.secretKey
+   * @param {String} options.valueEncoding
+   * @param {Object} options.metadata
    * @returns {Hypercore}
    */
-  async openFeed(path, stat = {}) {
+  async openFeed(path, options = {}) {
+    assert(path, 'The path is required.')
+
     await this.ready();
 
-    const { key } = stat;
+    const { key } = options;
 
     let descriptor = this.getDescriptorByPath(path);
 
     if (descriptor && key && !key.equals(descriptor.key)) {
-      throw new Error(`FeedStore: You are trying to open a feed with a different public key "${stat.key.toString('hex')}".`);
+      throw new Error(`FeedStore: You are trying to open a feed with a different public key "${key.toString('hex')}".`);
     }
 
     if (!descriptor && key && this.getDescriptorByKey(key)) {
-      throw new Error(`FeedStore: There is already a feed registered with the public key "${stat.key.toString('hex')}"`);
+      throw new Error(`FeedStore: There is already a feed registered with the public key "${key.toString('hex')}"`);
     }
 
     if (!descriptor) {
-      descriptor = this._createDescriptor(path, stat);
+      descriptor = this._createDescriptor(path, options);
     }
 
     return this._openFeed(descriptor);
@@ -272,6 +274,8 @@ class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async closeFeed(path) {
+    assert(path, 'The path is required.')
+
     await this.ready();
 
     const descriptor = this.getDescriptorByPath(path);
@@ -292,6 +296,8 @@ class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async deleteDescriptor(path) {
+    assert(path, 'The path is required.')
+
     await this.ready();
 
     const descriptor = this.getDescriptorByPath(path);
@@ -335,18 +341,18 @@ class FeedStore extends EventEmitter {
    *
    * @private
    * @param path
-   * @param {Object} stat
-   * @param {Buffer} stat.key
-   * @param {Buffer} stat.secretKey
-   * @param {String} stat.valueEncoding
-   * @param {Object} stat.metadata
+   * @param {Object} options
+   * @param {Buffer} options.key
+   * @param {Buffer} options.secretKey
+   * @param {String} options.valueEncoding
+   * @param {Object} options.metadata
    * @returns {FeedDescriptor}
    */
-  _createDescriptor(path, stat) {
+  _createDescriptor(path, options) {
     const defaultOptions = this._defaultFeedOptions;
 
-    const { key, secretKey, metadata } = stat;
-    let { valueEncoding = defaultOptions.valueEncoding } = stat;
+    const { key, secretKey, metadata } = options;
+    let { valueEncoding = defaultOptions.valueEncoding } = options;
 
     assert(!secretKey || (secretKey && key), 'You cannot have a secretKey without a publicKey.');
     assert(!valueEncoding || typeof valueEncoding === 'string', 'The valueEncoding can only be string.');
