@@ -416,7 +416,7 @@ class FeedStore extends EventEmitter {
    * @param {FeedDescriptor} descriptor
    * @returns {Promise}
    */
-  async _persistFeed(descriptor) {
+  async _persistFeed (descriptor) {
     const key = `${STORE_NAMESPACE}/${descriptor.key.toString('hex')}`;
     const data = await this._indexDB.get(key);
     const newData = descriptor.serialize();

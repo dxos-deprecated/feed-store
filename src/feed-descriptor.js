@@ -108,7 +108,7 @@ class FeedDescriptor {
   /**
    * @type {Buffer}
    */
-  get discoveryKey() {
+  get discoveryKey () {
     return this._discoveryKey;
   }
 
