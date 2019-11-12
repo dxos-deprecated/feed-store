@@ -2,6 +2,10 @@
 
 > A consistent store for your hypercore feeds.
 
+[![Build Status](https://travis-ci.com/dxos/feed-store.svg?branch=master)](https://travis-ci.com/dxos/feed-store)
+[![js-semistandard-style](https://cdn.rawgit.com/standard/semistandard/master/badge.svg)](https://github.com/standard/semistandard)
+[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
+
 FeedStore was created to administrate your hypercore feeds in a similar abstraction to work with files in a FileSystem.
 
 Each feed created by FeedStore works with an underlying object `descriptor` which provides additional information about the feed and how to work with it.

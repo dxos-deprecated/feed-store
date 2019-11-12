@@ -17,7 +17,7 @@ describe('feedStore', () => {
   let feedStore;
   const directory = tempy.directory();
 
-  function createDefault() {
+  function createDefault () {
     return FeedStore.create(hypertrie(directory), directory, { feedOptions: { valueEncoding: 'utf-8' } });
   }
 
@@ -109,11 +109,11 @@ describe('feedStore', () => {
       feedOptions: { valueEncoding: 'utf-8' },
       codecs: {
         codecA: {
-          encode(val) {
+          encode (val) {
             val.encodedBy = 'codecA';
             return Buffer.from(JSON.stringify(val));
           },
-          decode(val) {
+          decode (val) {
             return JSON.parse(val);
           }
         }

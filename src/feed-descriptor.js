@@ -21,7 +21,6 @@ const kDescriptor = Symbol('descriptor');
  * Abstract handler for an Hypercore instance.
  */
 class FeedDescriptor {
-
   /**
    * constructor
    *
@@ -33,7 +32,7 @@ class FeedDescriptor {
    * @param {Object|String} options.valueEncoding
    * @param {Object|Buffer} options.metadata
    */
-  constructor(options = {}) {
+  constructor (options = {}) {
     const { storage, path, key, secretKey, valueEncoding, metadata = {} } = options;
 
     assert(!path || (typeof path === 'string' && path.length > 0), 'FeedDescriptor: path is required.');
@@ -74,35 +73,35 @@ class FeedDescriptor {
   /**
    * @type {String}
    */
-  get path() {
+  get path () {
     return this._path;
   }
 
   /**
    * @type {Hypercore|null}
    */
-  get feed() {
+  get feed () {
     return this._feed;
   }
 
   /**
    * @type {Boolean}
    */
-  get opened() {
+  get opened () {
     return !!(this.feed && this._feed.opened && !this._feed.closed);
   }
 
   /**
    * @type {Buffer}
    */
-  get key() {
+  get key () {
     return this._key;
   }
 
   /**
    * @type {Buffer}
    */
-  get secretKey() {
+  get secretKey () {
     return this._secretKey;
   }
 
@@ -116,15 +115,14 @@ class FeedDescriptor {
   /**
    * @type {Object|String}
    */
-  get valueEncoding() {
+  get valueEncoding () {
     return this._valueEncoding;
   }
-
 
   /**
    * @type {Object}
    */
-  get metadata() {
+  get metadata () {
     return this._metadata;
   }
 
@@ -133,7 +131,7 @@ class FeedDescriptor {
    *
    * @returns {Object}
    */
-  serialize() {
+  serialize () {
     const valueEncoding = this._valueEncoding;
 
     return {
@@ -150,7 +148,7 @@ class FeedDescriptor {
    *
    * @returns {function} release
    */
-  async lock() {
+  async lock () {
     return this._locker.lock();
   }
 
@@ -162,7 +160,7 @@ class FeedDescriptor {
    *
    * @returns {Promise<Hypercore>}
    */
-  async open() {
+  async open () {
     const release = await this.lock();
 
     if (this.opened) {
@@ -198,7 +196,7 @@ class FeedDescriptor {
    *
    * @returns {Promise}
    */
-  async close() {
+  async close () {
     const release = await this.lock();
 
     try {
@@ -221,7 +219,7 @@ class FeedDescriptor {
    * @param {String} dir
    * @returns {Function}
    */
-  _createStorage(dir) {
+  _createStorage (dir) {
     const ras = this._storage;
 
     return (name) => {
@@ -233,7 +231,7 @@ class FeedDescriptor {
   }
 }
 
-function getDescriptor(feed) {
+function getDescriptor (feed) {
   return feed[kDescriptor];
 }
 

@@ -27,7 +27,6 @@ const STORE_NAMESPACE = 'feed';
  * @extends {EventEmitter}
  */
 class FeedStore extends EventEmitter {
-
   /**
    * Create and initialize a new FeedStore
    *
@@ -39,7 +38,7 @@ class FeedStore extends EventEmitter {
    * @param {Object} options.codecs Define a list of available codecs to work with the feeds.
    * @returns {Promise<FeedStore>}
    */
-  static async create(db, storage, options = {}) {
+  static async create (db, storage, options = {}) {
     const feedStore = new FeedStore(db, storage, options);
     await feedStore.initialize();
     return feedStore;
@@ -50,7 +49,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {FeedDescriptor} descriptor
    */
-  static getDescriptor(feed) {
+  static getDescriptor (feed) {
     return getDescriptor(feed);
   }
 
@@ -62,7 +61,7 @@ class FeedStore extends EventEmitter {
    * @param {Object} options
    * @param {Object} options.feedOptions Default options for each feed.
    */
-  constructor(db, storage, options = {}) {
+  constructor (db, storage, options = {}) {
     super();
 
     const { feedOptions = {}, codecs = {} } = options;
@@ -91,7 +90,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {Promise}
    */
-  async initialize() {
+  async initialize () {
     const list = await this._indexDB.list(STORE_NAMESPACE);
 
     await Promise.all(
@@ -108,7 +107,7 @@ class FeedStore extends EventEmitter {
     });
   }
 
-  async ready() {
+  async ready () {
     if (this._ready) {
       return;
     }
@@ -123,7 +122,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {FeedStore}
    */
-  setCodecs(codecs) {
+  setCodecs (codecs) {
     this._codecs = Object.assign({}, codecs);
 
     Object.keys(this._codecs).forEach((prop) => {
@@ -140,7 +139,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {FeedDescriptor[]}
    */
-  getDescriptors() {
+  getDescriptors () {
     return Array.from(this._descriptors.values());
   }
 
@@ -149,7 +148,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {FeedDescriptor[]}
    */
-  getOpenedDescriptors() {
+  getOpenedDescriptors () {
     return this.getDescriptors()
       .filter(descriptor => descriptor.opened);
   }
@@ -160,7 +159,7 @@ class FeedStore extends EventEmitter {
    * @param {Buffer} key
    * @returns {FeedDescriptor}
    */
-  getDescriptorByKey(key) {
+  getDescriptorByKey (key) {
     return this.getDescriptors().find(descriptor => descriptor.key.equals(key));
   }
 
@@ -170,7 +169,7 @@ class FeedStore extends EventEmitter {
    * @param {String} path
    * @returns {FeedDescriptor}
    */
-  getDescriptorByPath(path) {
+  getDescriptorByPath (path) {
     return this.getDescriptors().find(descriptor => descriptor.path === path);
   }
 
@@ -179,7 +178,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {Hypercore[]}
    */
-  getFeeds() {
+  getFeeds () {
     return this.getOpenedDescriptors()
       .map(descriptor => descriptor.feed);
   }
@@ -190,7 +189,7 @@ class FeedStore extends EventEmitter {
    * @param {descriptorCallback} callback
    * @returns {Hypercore}
    */
-  findFeed(cb) {
+  findFeed (cb) {
     const descriptor = this.getOpenedDescriptors()
       .find(descriptor => cb(descriptor));
 
@@ -205,7 +204,7 @@ class FeedStore extends EventEmitter {
    * @param {descriptorCallback} callback
    * @returns {Hypercore[]}
    */
-  filterFeeds(cb) {
+  filterFeeds (cb) {
     const descriptors = this.getOpenedDescriptors()
       .filter(descriptor => cb(descriptor));
 
@@ -218,7 +217,7 @@ class FeedStore extends EventEmitter {
    * @param {descriptorCallback} callback
    * @returns {Promise<Hypercore[]>}
    */
-  async loadFeeds(cb) {
+  async loadFeeds (cb) {
     await this.ready();
 
     const descriptors = this.getDescriptors()
@@ -324,7 +323,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {Promise}
    */
-  async close() {
+  async close () {
     await this.ready();
 
     try {
@@ -383,7 +382,7 @@ class FeedStore extends EventEmitter {
    * @param {FeedDescriptor} descriptor
    * @returns {Promise<Hypercore>}
    */
-  async _openFeed(descriptor) {
+  async _openFeed (descriptor) {
     // Fast return without need to lock the descriptor.
     if (descriptor.opened) {
       return descriptor.feed;
@@ -434,7 +433,7 @@ class FeedStore extends EventEmitter {
    * @param {FeedDescriptor} descriptor
    * @returns {undefined}
    */
-  _defineFeedEvents(descriptor) {
+  _defineFeedEvents (descriptor) {
     const { feed } = descriptor;
 
     feed.on('append', () => this.emit('append', feed, descriptor));

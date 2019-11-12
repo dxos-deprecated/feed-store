@@ -11,25 +11,26 @@
     "url": "git+https://github.com/dxos/feed-store.git"
   },
   "license": "GPL-3.0",
-  "main": "index.js",
-  "browser": "dist/feed-store.js",
   "files": [
     "dist",
     "index.js"
   ],
-  "browserslist": [
-    "> 5%"
-  ],
+  "main": "index.js",
+  "browser": "dist/feed-store.js",
   "scripts": {
-    "lint": "eslint 'src/**/*.js'",
     "build": "npm run clean && npm run build:protobuf && npm run build:babel",
     "build:babel": "babel ./src --out-dir ./dist --ignore \"**/*.test.js\" --source-maps",
     "build:protobuf": "pbjs -t json src/schema.proto -o src/schema.json",
     "clean": "del-cli dist",
+    "coveralls": "npm test -- --coverage && cat ./coverage/lcov.info | coveralls",
+    "lint": "semistandard 'src/**/*.js'",
+    "prepublishOnly": "npm run test && npm run build",
     "test": "npm run build:protobuf && jest --verbose --passWithNoTests src",
-    "posttest": "npm run lint",
-    "prepublishOnly": "npm run test && npm run build"
+    "posttest": "npm run lint"
   },
+  "browserslist": [
+    "> 5%"
+  ],
   "dependencies": {
     "@wirelineio/codec-protobuf": "^0.2.23",
     "buffer-json-encoding": "^1.0.2",
@@ -51,17 +52,22 @@
     "babel-jest": "^24.8.0",
     "babel-plugin-add-module-exports": "^1.0.2",
     "babel-plugin-inline-import": "^3.0.0",
+    "coveralls": "^3.0.7",
     "del-cli": "^2.0.0",
-    "eslint-config-airbnb": "^17.1.0",
-    "eslint-plugin-import": "^2.17.2",
-    "eslint-plugin-jsx-a11y": "^6.2.1",
-    "eslint-plugin-react": "^7.12.4",
-    "eslint": "^5.16.0",
     "jest": "^24.5.0",
     "random-access-memory": "^3.1.1",
+    "semistandard": "^14.2.0",
     "tempy": "^0.3.0"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "semistandard": {
+    "parser": "babel-eslint",
+    "env": [
+      "jest",
+      "node",
+      "browser"
+    ]
   }
 }

@@ -5,11 +5,11 @@
 import mutexify from 'mutexify';
 
 class Locker {
-  constructor() {
+  constructor () {
     this._lock = mutexify();
   }
 
-  lock() {
+  lock () {
     return new Promise((resolve) => {
       this._lock((cbRelease) => {
         const release = () => new Promise(resolve => cbRelease(resolve));

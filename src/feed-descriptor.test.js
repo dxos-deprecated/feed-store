@@ -88,7 +88,7 @@ describe('FeedDescriptor operations', () => {
     expect(data.metadata).toBeInstanceOf(Buffer);
 
     const fd2 = new FeedDescriptor(Object.assign({}, {
-      storage: ram,
+      storage: ram
     }, data));
 
     expect(fd2.metadata).toEqual(metadata);
