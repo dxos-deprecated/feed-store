@@ -93,7 +93,7 @@ Creates a new hypercore feed identified by a string path.
 
 > If the feed exists but is not loaded it will load the feed instead of creating a new one.
 
-- `path: String`: A require name to identify and index the feed to open.
+- `path: string`: A require name to identify and index the feed to open.
 - `options: Object`: Feed options.
   - `metadata: Object`: Serializable object with custom data about the feed.
   - `[...hypercoreOptions]`: Hypercore options.
@@ -132,13 +132,13 @@ Using the static method `getDescriptor` you can get that information.
 
 A `descriptor` provides the next information:
 
-- `path: String`
+- `path: string`
 - `key: Buffer`
 - `secretKey: Buffer`
 - `discoveryKey: Buffer`
 - `feed: (Hypercore|null)`
 - `opened: Boolean`
-- `valueEncoding: String|Codec`
+- `valueEncoding: string|Codec`
 - `metadata: Object`
 
 #### `const descriptors = feedStore.getDescriptors()`
