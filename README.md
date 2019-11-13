@@ -75,6 +75,8 @@ Creates and initializes a new FeedStore.
 - `options`:
   - `feedOptions: Object`: Default hypercore options for each feed.
   - `codecs: Object`: Define a list of available codecs to work with the feeds.
+  - `timeout: number`: Define the time (ms) to wait for open or close a feed. Default: `10 * 1000`.
+  - `hypercore: Hypercore`: Define the Hypercore class to use.
 
 #### `const feedStore = new FeedStore(database, storage, [options])`
 
@@ -187,7 +189,7 @@ Emitted after an append in any of the loaded feeds.
 
 Emitted after a feed download event.
 
-- `index: Number` Block index.
+- `index: number` Block index.
 - `data: Buffer`
 - `feed: Hypercore`
 - `descriptor: FeedDescriptor`

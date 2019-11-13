@@ -36,7 +36,7 @@ class FeedStore extends EventEmitter {
    * @param {Object} options
    * @param {Object} options.feedOptions Default options for each feed.
    * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
-   * @param {Number} options.timeout Defines how much to wait for open or close a feed.
+   * @param {number} options.timeout Defines how much to wait for open or close a feed.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    * @returns {Promise<FeedStore>}
    */
@@ -63,7 +63,7 @@ class FeedStore extends EventEmitter {
    * @param {Object} options
    * @param {Object} options.feedOptions Default options for each feed.
    * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
-   * @param {Number} options.timeout Defines how much to wait for open or close a feed.
+   * @param {number} options.timeout Defines how much to wait for open or close a feed.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    */
   constructor (db, storage, options = {}) {
