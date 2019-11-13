@@ -5,7 +5,7 @@
 import { EventEmitter } from 'events';
 import assert from 'assert';
 
-import Codec from '@wirelineio/codec-protobuf';
+import Codec from '@dxos/codec-protobuf';
 
 import { FeedDescriptor, getDescriptor } from './feed-descriptor';
 import IndexDB from './index-db';

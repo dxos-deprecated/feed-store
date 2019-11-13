@@ -33,7 +33,7 @@
     "> 5%"
   ],
   "dependencies": {
-    "@wirelineio/codec-protobuf": "^0.2.23",
+    "@dxos/codec-protobuf": "^1.0.0",
     "buffer-json-encoding": "^1.0.2",
     "debug": "^4.1.1",
     "hypercore": "^6.24.0",
