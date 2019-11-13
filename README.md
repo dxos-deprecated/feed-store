@@ -4,6 +4,8 @@
 
 [![Build Status](https://travis-ci.com/dxos/feed-store.svg?branch=master)](https://travis-ci.com/dxos/feed-store)
 [![Coverage Status](https://coveralls.io/repos/github/dxos/feed-store/badge.svg?branch=master)](https://coveralls.io/github/dxos/feed-store?branch=master)
+[![Dependency Status](https://david-dm.org/dxos/feed-store.svg)](https://david-dm.org/dxos/feed-store)
+[![devDependency Status](https://david-dm.org/dxos/feed-store/dev-status.svg)](https://david-dm.org/dxos/feed-store#info=devDependencies)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/standard/semistandard)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
