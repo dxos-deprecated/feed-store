@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Wireline, Inc.
+// Copyright 2019 DxOS.
 //
 
 import path from 'path';

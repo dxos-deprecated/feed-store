@@ -1,3 +1,7 @@
+//
+// Copyright 2019 DxOS.
+//
+
 import ram from 'random-access-memory';
 import crypto from 'hypercore-crypto';
 

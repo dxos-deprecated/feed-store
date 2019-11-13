@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Wireline, Inc.
+// Copyright 2019 DxOS.
 //
 
 import { EventEmitter } from 'events';
