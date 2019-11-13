@@ -36,7 +36,7 @@ import { FeedStore, getDescriptor } from '@dxos/feed-store';
     // Database to index feeds.
     hypertrie('./db'),
 
-    // RandomAccessStorage where the feeds are going to be store it.
+    // RandomAccessStorage where the feeds are going to be stored.
     './db',
 
     // Options
@@ -45,7 +45,7 @@ import { FeedStore, getDescriptor } from '@dxos/feed-store';
     }
   );
 
-  // Open a feed. If the feed doesn't exists would be created.
+  // Open a feed. If the feed doesn't exist, it would be created.
   const foo = await feedStore.openFeed('/foo');
 
   foo.append('foo', () => {
@@ -57,7 +57,7 @@ import { FeedStore, getDescriptor } from '@dxos/feed-store';
     key: Buffer.from('...'),
     secretKey: Buffer.from('...'),
     valueEncoding: 'json',
-    metadata: { tag: 'important' } // Save some serializable metadata related to the feed.
+    metadata: { tag: 'important' } // Save serializable feed metadata.
   });
 
   console.log(getDescriptor(bar).metadata); // { tag: 'important' }
@@ -107,11 +107,9 @@ Remove a descriptor from the database by the path.
 
 Close the hypertrie database and their feeds.
 
-#### `const feeds = await feedStore.loadFeeds(callback)`
+#### `const feeds = await feedStore.loadFeeds((descriptor) => Boolean)`
 
-Load feeds using a filter callback.
-
-- `callback: (descriptor) => Boolean`: Function to filter what feeds you want to load from the database.
+Loads feeds using a function to filter what feeds you want to load from the database.
 
 ```javascript
 const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag === 'important')
@@ -160,43 +158,46 @@ Search a descriptor by their path.
 
 Returns a list of opened hypercore feeds.
 
-#### `const feed = feedStore.findFeed(callback)`
+#### `const feed = feedStore.findFeed((descriptor) => Boolean)`
 
 Find a opened feed using a callback function.
 
-- `callback: (descriptor) => Boolean`
+- `descriptor: FeedDescriptor`
 
-#### `const feeds = feedStore.filterFeeds(callback)`
+#### `const feeds = feedStore.filterFeeds((descriptor) => Boolean)`
 
 Filter the opened feeds using a callback function.
 
-- `callback: (descriptor) => Boolean`
+- `descriptor: FeedDescriptor`
 
 ### Events
 
-#### `feedStore.on('ready', callback)`
+#### `feedStore.on('ready', () => {})`
 
-Execute when feedStore is loaded.
+Emitted when feedStore is loaded.
 
-- `callback: () => {}`
+#### `feedStore.on('append', (feed, descriptor) => {})`
 
-#### `feedStore.on('append', callback)`
+Emitted after an append in any of the loaded feeds.
 
-Execute it after an append in any of the loaded feeds.
+- `feed: Hypercore`
+- `descriptor: FeedDescriptor`
 
-- `callback: (feed, descriptor) => {}`
+#### `feedStore.on('download', (index, data, feed, descriptor) => {})`
 
-#### `feedStore.on('download', callback)`
+Emitted after a feed download event.
 
-Execute it after a feed download event.
+- `index: Number` Block index.
+- `data: Buffer`
+- `feed: Hypercore`
+- `descriptor: FeedDescriptor`
 
-- `callback: (index, data, feed, descriptor) => {}`
+#### `feedStore.on('feed', (feed, descriptor) => {})`
 
-#### `feedStore.on('feed', callback)`
+Emitted when a feed is loaded.
 
-Execute it when a feed is loaded.
-
-- `callback: (feed, descriptor) => {}`
+- `feed: Hypercore`
+- `descriptor: FeedDescriptor`
 
 ## Contributing
 
