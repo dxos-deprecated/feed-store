@@ -10,7 +10,7 @@ import pify from 'pify';
 
 import FeedStore from './feed-store';
 
-describe('feedStore', () => {
+describe('FeedStore', () => {
   let booksFeed;
   let usersFeed;
   let groupsFeed;
@@ -33,6 +33,11 @@ describe('feedStore', () => {
     expect(FeedStore.getDescriptor(booksFeed)).toHaveProperty('path', '/books');
     await pify(booksFeed.append.bind(booksFeed))('Foundation and Empire');
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
+    // It should return the same opened instance.
+    expect(feedStore.openFeed('/books')).resolves.toBe(booksFeed);
+    // You can't open a feed with a different key.
+    await expect(feedStore.openFeed('/books', { key: Buffer.from('...') })).rejects.toThrow(/different public key/);
+    await expect(feedStore.openFeed('/foo', { key: booksFeed.key })).rejects.toThrow(/already a feed registered with the public key/);
   });
 
   test('Create duplicate feed', async () => {
@@ -46,6 +51,7 @@ describe('feedStore', () => {
   });
 
   test('Create and close a feed', async () => {
+    await expect(feedStore.closeFeed('/fooo')).rejects.toThrow(/Feed not found/);
     await feedStore.closeFeed('/groups');
     expect(groupsFeed.closed).toBe(true);
   });
@@ -134,5 +140,70 @@ describe('feedStore', () => {
       await pify(feed.append.bind(feed))({ msg: 'test' });
       await expect(pify(feed.head.bind(feed))()).resolves.toEqual({ msg: 'test', encodedBy: 'codecA' });
     }
+  });
+
+  test('on open error should unlock the descriptor', async () => {
+    const feedStore = await FeedStore.create(
+      hypertrie(ram),
+      ram,
+      {
+        hypercore: () => {
+          throw new Error('open error');
+        }
+      }
+    );
+
+    await expect(feedStore.openFeed('/foo')).rejects.toThrow(/open error/);
+
+    const fd = feedStore.getDescriptorByPath('/foo');
+    const release = await fd.lock();
+    expect(release).toBeDefined();
+    await release();
+  });
+
+  test('on close error should unlock the descriptor', async () => {
+    const feedStore = await FeedStore.create(
+      hypertrie(ram),
+      ram,
+      {
+        hypercore: () => ({
+          opened: true,
+          ready (cb) { cb(); },
+          on () {},
+          close () {
+            throw new Error('close error');
+          }
+        })
+      }
+    );
+
+    const feed = await feedStore.openFeed('/foo');
+    const fd = FeedStore.getDescriptor(feed);
+
+    await expect(feedStore.closeFeed('/foo')).rejects.toThrow(/close error/);
+    await expect(feedStore.close()).rejects.toThrow(/close error/);
+
+    const release = await fd.lock();
+    expect(release).toBeDefined();
+    await release();
+  });
+
+  test('on delete descriptor error should unlock the descriptor', async () => {
+    const feedStore = await FeedStore.create(
+      hypertrie(ram),
+      ram
+    );
+
+    const feed = await feedStore.openFeed('/foo');
+    const fd = FeedStore.getDescriptor(feed);
+
+    // We remove the indexDB to force an error.
+    feedStore._indexDB = null;
+
+    await expect(feedStore.deleteDescriptor('/foo')).rejects.toThrow(Error);
+
+    const release = await fd.lock();
+    expect(release).toBeDefined();
+    await release();
   });
 });

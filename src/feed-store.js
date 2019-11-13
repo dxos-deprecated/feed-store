@@ -35,7 +35,9 @@ class FeedStore extends EventEmitter {
    * @param {RandomAccessStorage} storage RandomAccessStorage to use by default by the feeds.
    * @param {Object} options
    * @param {Object} options.feedOptions Default options for each feed.
-   * @param {Object} options.codecs Define a list of available codecs to work with the feeds.
+   * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
+   * @param {Number} options.timeout Defines how much to wait for open or close a feed.
+   * @param {Hypercore} options.hypercore Hypercore class to use.
    * @returns {Promise<FeedStore>}
    */
   static async create (db, storage, options = {}) {
@@ -60,11 +62,14 @@ class FeedStore extends EventEmitter {
    * @param {RandomAccessStorage} storage RandomAccessStorage to use by default by the feeds.
    * @param {Object} options
    * @param {Object} options.feedOptions Default options for each feed.
+   * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
+   * @param {Number} options.timeout Defines how much to wait for open or close a feed.
+   * @param {Hypercore} options.hypercore Hypercore class to use.
    */
   constructor (db, storage, options = {}) {
     super();
 
-    const { feedOptions = {}, codecs = {} } = options;
+    const { feedOptions = {}, codecs = {}, timeout, hypercore } = options;
 
     this._indexDB = new IndexDB(
       db,
@@ -77,6 +82,10 @@ class FeedStore extends EventEmitter {
     this._defaultStorage = storage;
 
     this._defaultFeedOptions = feedOptions;
+
+    this._timeout = timeout;
+
+    this._hypercore = hypercore;
 
     this.setCodecs(codecs);
 
@@ -364,7 +373,9 @@ class FeedStore extends EventEmitter {
       key,
       secretKey,
       valueEncoding,
-      metadata
+      metadata,
+      timeout: this._timeout,
+      hypercore: this._hypercore
     });
 
     this._descriptors.set(
@@ -403,8 +414,8 @@ class FeedStore extends EventEmitter {
 
       return descriptor.feed;
     } catch (err) {
+      if (release) await release();
       debug(err);
-      await release();
       throw err;
     }
   }

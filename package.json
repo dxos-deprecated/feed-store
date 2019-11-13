@@ -40,8 +40,10 @@
     "hypercore-crypto": "^1.0.0",
     "hypertrie": "^3.6.1",
     "mutexify": "^1.2.0",
+    "p-timeout": "^3.2.0",
     "pify": "^4.0.1",
     "random-access-file": "^2.1.0",
+    "sodium-universal": "^2.0.0",
     "source-map-support": "^0.5.12"
   },
   "devDependencies": {

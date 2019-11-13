@@ -4,12 +4,14 @@
 
 import path from 'path';
 import assert from 'assert';
-import crypto from 'hypercore-crypto';
 
-import hypercore from 'hypercore';
+import defaultHypercore from 'hypercore';
+import crypto from 'hypercore-crypto';
 import raf from 'random-access-file';
 import pify from 'pify';
 import bufferJson from 'buffer-json-encoding';
+import sodium from 'sodium-universal';
+import pTimeout from 'p-timeout';
 
 import Locker from './locker';
 
@@ -30,15 +32,20 @@ class FeedDescriptor {
    * @param {Buffer} options.key
    * @param {Buffer} options.secretKey
    * @param {Object|String} options.valueEncoding
+   * @param {number} [options.timeout=10000]
    * @param {Object|Buffer} options.metadata
+   * @param {Hypercore} options.hypercore
    */
   constructor (options = {}) {
-    const { storage, path, key, secretKey, valueEncoding, metadata = {} } = options;
+    const { storage, path, key, secretKey, valueEncoding, metadata = {}, timeout = 10 * 1000, hypercore = defaultHypercore } = options;
 
-    assert(!path || (typeof path === 'string' && path.length > 0), 'FeedDescriptor: path is required.');
-    assert(!key || Buffer.isBuffer(key), 'FeedDescriptor: key must be a buffer.');
-    assert(!secretKey || Buffer.isBuffer(secretKey), 'FeedDescriptor: secretKey must be a buffer.');
-    assert(!valueEncoding || typeof valueEncoding === 'string' || (typeof valueEncoding === 'object' && valueEncoding.name),
+    assert(!path || (typeof path === 'string' && path.length > 0),
+      'FeedDescriptor: path is required.');
+    assert(!key || (Buffer.isBuffer(key) && key.length === sodium.crypto_sign_PUBLICKEYBYTES),
+      'FeedDescriptor: key must be a buffer of size crypto_sign_PUBLICKEYBYTES.');
+    assert(!secretKey || (Buffer.isBuffer(secretKey) && secretKey.length === sodium.crypto_sign_SECRETKEYBYTES),
+      'FeedDescriptor: secretKey must be a buffer of size a crypto_sign_SECRETKEYBYTES.');
+    assert(!valueEncoding || typeof valueEncoding === 'string' || (typeof valueEncoding === 'object' && !!valueEncoding.name),
       'FeedDescriptor: valueEncoding must be a string or a codec object with a name prop that could be serializable.');
 
     this._storage = storage;
@@ -46,6 +53,8 @@ class FeedDescriptor {
     this._key = key;
     this._secretKey = secretKey;
     this._valueEncoding = valueEncoding;
+    this._timeout = timeout;
+    this._hypercore = hypercore;
 
     if (Buffer.isBuffer(metadata)) {
       this._metadata = bufferJson.decode(metadata);
@@ -169,21 +178,8 @@ class FeedDescriptor {
     }
 
     try {
-      this._feed = hypercore(
-        this._createStorage(this._key.toString('hex')),
-        this._key,
-        {
-          secretKey: this._secretKey,
-          valueEncoding: this._valueEncoding
-        }
-      );
-
-      this._feed[kDescriptor] = this;
-
-      await pify(this._feed.ready.bind(this._feed))();
-
+      await pTimeout(this._open(), this._timeout);
       await release();
-
       return this._feed;
     } catch (err) {
       await release();
@@ -201,7 +197,7 @@ class FeedDescriptor {
 
     try {
       if (this.opened) {
-        await pify(this._feed.close.bind(this._feed))();
+        await pTimeout(pify(this._feed.close.bind(this._feed))(), this._timeout);
       }
 
       await release();
@@ -228,6 +224,21 @@ class FeedDescriptor {
       }
       return ras(`${dir}/${name}`);
     };
+  }
+
+  async _open () {
+    this._feed = this._hypercore(
+      this._createStorage(this._key.toString('hex')),
+      this._key,
+      {
+        secretKey: this._secretKey,
+        valueEncoding: this._valueEncoding
+      }
+    );
+
+    this._feed[kDescriptor] = this;
+
+    await pify(this._feed.ready.bind(this._feed))();
   }
 }
 

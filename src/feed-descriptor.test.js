@@ -3,7 +3,7 @@ import crypto from 'hypercore-crypto';
 
 import { FeedDescriptor } from './feed-descriptor';
 
-describe('FeedDescriptor operations', () => {
+describe('FeedDescriptor', () => {
   let fd = null;
 
   test('Create with empty', () => {
@@ -93,5 +93,43 @@ describe('FeedDescriptor operations', () => {
 
     expect(fd2.metadata).toEqual(metadata);
     expect(fd2.metadata.aBuffer.toString()).toBe('test');
+  });
+
+  test('on open error should unlock the resource', async () => {
+    const fd = new FeedDescriptor({
+      storage: ram,
+      path: '/foo',
+      hypercore: () => {
+        throw new Error('open error');
+      }
+    });
+
+    await expect(fd.open()).rejects.toThrow(/open error/);
+
+    const release = await fd.lock();
+    expect(release).toBeDefined();
+    await release();
+  });
+
+  test('on close error should unlock the resource', async () => {
+    const fd = new FeedDescriptor({
+      storage: ram,
+      path: '/foo',
+      hypercore: () => ({
+        opened: true,
+        ready (cb) { cb(); },
+        close () {
+          throw new Error('close error');
+        }
+      })
+    });
+
+    await fd.open();
+
+    await expect(fd.close()).rejects.toThrow(/close error/);
+
+    const release = await fd.lock();
+    expect(release).toBeDefined();
+    await release();
   });
 });
