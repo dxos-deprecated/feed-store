@@ -28,10 +28,10 @@ class FeedDescriptor {
    *
    * @param {Object} options
    * @param {RandomAccessStorage} options.storage
-   * @param {String} options.path
+   * @param {string} options.path
    * @param {Buffer} options.key
    * @param {Buffer} options.secretKey
-   * @param {Object|String} options.valueEncoding
+   * @param {Object|string} options.valueEncoding
    * @param {number} [options.timeout=10000]
    * @param {Object|Buffer} options.metadata
    * @param {Hypercore} options.hypercore
@@ -80,7 +80,7 @@ class FeedDescriptor {
   }
 
   /**
-   * @type {String}
+   * @type {string}
    */
   get path () {
     return this._path;
@@ -122,7 +122,7 @@ class FeedDescriptor {
   }
 
   /**
-   * @type {Object|String}
+   * @type {Object|string}
    */
   get valueEncoding () {
     return this._valueEncoding;
@@ -212,7 +212,7 @@ class FeedDescriptor {
    * to work with the RandomAccessStorage specified.
    *
    * @private
-   * @param {String} dir
+   * @param {string} dir
    * @returns {Function}
    */
   _createStorage (dir) {

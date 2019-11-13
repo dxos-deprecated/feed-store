@@ -175,7 +175,7 @@ class FeedStore extends EventEmitter {
   /**
    * Get a descriptor by a path.
    *
-   * @param {String} path
+   * @param {string} path
    * @returns {FeedDescriptor}
    */
   getDescriptorByPath (path) {
@@ -243,11 +243,11 @@ class FeedStore extends EventEmitter {
    *
    * Similar to fs.open
    *
-   * @param {String} path
+   * @param {string} path
    * @param {Object} options
    * @param {Buffer} options.key
    * @param {Buffer} options.secretKey
-   * @param {String} options.valueEncoding
+   * @param {string} options.valueEncoding
    * @param {Object} options.metadata
    * @returns {Hypercore}
    */
@@ -278,7 +278,7 @@ class FeedStore extends EventEmitter {
   /**
    * Close a feed by the path.
    *
-   * @param {String} path
+   * @param {string} path
    * @returns {Promise}
    */
   async closeFeed (path) {
@@ -300,7 +300,7 @@ class FeedStore extends EventEmitter {
    *
    * IMPORTANT: This operation would not close the feed.
    *
-   * @param {String} path
+   * @param {string} path
    * @returns {Promise}
    */
   async deleteDescriptor (path) {
@@ -352,7 +352,7 @@ class FeedStore extends EventEmitter {
    * @param {Object} options
    * @param {Buffer} options.key
    * @param {Buffer} options.secretKey
-   * @param {String} options.valueEncoding
+   * @param {string} options.valueEncoding
    * @param {Object} options.metadata
    * @returns {FeedDescriptor}
    */
