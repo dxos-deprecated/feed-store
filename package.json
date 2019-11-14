@@ -16,7 +16,6 @@
     "index.js"
   ],
   "main": "index.js",
-  "browser": "dist/feed-store.js",
   "scripts": {
     "build": "npm run clean && npm run build:protobuf && npm run build:babel",
     "build:babel": "babel ./src --out-dir ./dist --ignore \"**/*.test.js\" --source-maps",
