@@ -8,7 +8,7 @@
 [![Dependency Status](https://david-dm.org/dxos/feed-store.svg)](https://david-dm.org/dxos/feed-store)
 [![devDependency Status](https://david-dm.org/dxos/feed-store/dev-status.svg)](https://david-dm.org/dxos/feed-store#info=devDependencies)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/standard/semistandard)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
+[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme) [![Greenkeeper badge](https://badges.greenkeeper.io/dxos/feed-store.svg)](https://greenkeeper.io/)
 
 FeedStore was created to administrate your hypercore feeds in a similar abstraction to work with files in a FileSystem.
 
