@@ -86,7 +86,7 @@ Creates a new FeedStore `without wait for their initialization.`
 
 > The initialization happens by running: `await feedStore.initialize()`
 
-#### `const feed = await feedStore.openFeed(path, [options])`
+#### `await feedStore.openFeed(path, [options]) -> Hypercore`
 
 Creates a new hypercore feed identified by a string path.
 
@@ -111,7 +111,7 @@ Remove a descriptor from the database by the path.
 
 Close the hypertrie database and their feeds.
 
-#### `const feeds = await feedStore.loadFeeds((descriptor) => Boolean)`
+#### `await feedStore.loadFeeds((descriptor) => Boolean) -> Hypercore[]`
 
 Loads feeds using a function to filter what feeds you want to load from the database.
 
@@ -123,13 +123,13 @@ const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag ==
 
 Wait for feedStore to be ready.
 
-#### `const descriptor = FeedStore.getDescriptor(feed)`
+#### `FeedStore.getDescriptor(feed) -> FeedDescriptor`
 
 Each feed created by FeedStore set a unique private Symbol inside with the descriptor information.
 
 Using the static method `getDescriptor` you can get that information.
 
-A `descriptor` provides the next information:
+A `FeedDescriptor` provides the next information:
 
 - `path: string`
 - `key: Buffer`
@@ -140,35 +140,35 @@ A `descriptor` provides the next information:
 - `valueEncoding: string|Codec`
 - `metadata: Object`
 
-#### `const descriptors = feedStore.getDescriptors()`
+#### `feedStore.getDescriptors() -> FeedDescriptor[]`
 
 Returns a list of descriptors.
 
-#### `const descriptors = feedStore.getOpenedDescriptors()`
+#### `feedStore.getOpenedDescriptors() -> FeedDescriptor[]`
 
 Returns a list of descriptors with the feed opened.
 
-#### `const descriptor = feedStore.getDescriptorByKey(key)`
+#### `feedStore.getDescriptorByKey(key) -> FeedDescriptor`
 
 Search a descriptor by their feed key.
 
 - `key: Buffer`
 
-#### `const descriptor = feedStore.getDescriptorByPath(path)`
+#### `feedStore.getDescriptorByPath(path) -> FeedDescriptor`
 
 Search a descriptor by their path.
 
-#### `const feeds = feedStore.getFeeds()`
+#### `feedStore.getFeeds() -> Hypercore[]`
 
 Returns a list of opened hypercore feeds.
 
-#### `const feed = feedStore.findFeed((descriptor) => Boolean)`
+#### `feedStore.findFeed((descriptor) => Boolean) -> Hypercore`
 
 Find a opened feed using a callback function.
 
 - `descriptor: FeedDescriptor`
 
-#### `const feeds = feedStore.filterFeeds((descriptor) => Boolean)`
+#### `feedStore.filterFeeds((descriptor) => Boolean) -> Hypercore[]`
 
 Filter the opened feeds using a callback function.
 
