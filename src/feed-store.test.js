@@ -7,6 +7,8 @@ import tempy from 'tempy';
 import ram from 'random-access-memory';
 import hypercore from 'hypercore';
 import pify from 'pify';
+import wait from 'wait-for-expect';
+import eos from 'end-of-stream-promise';
 
 import FeedStore from './feed-store';
 
@@ -66,6 +68,7 @@ describe('FeedStore', () => {
   test('Feeds', async () => {
     expect(feedStore.getFeeds().map(f => f.key)).toEqual([booksFeed.key, usersFeed.key]);
     expect(feedStore.findFeed(fd => fd.key.equals(booksFeed.key))).toBe(booksFeed);
+    expect(feedStore.findFeed(() => false)).toBeUndefined();
     expect(feedStore.filterFeeds(fd => fd.path === '/books')).toEqual([booksFeed]);
   });
 
@@ -117,6 +120,16 @@ describe('FeedStore', () => {
         codecA: {
           encode (val) {
             val.encodedBy = 'codecA';
+            return Buffer.from(JSON.stringify(val));
+          },
+          decode (val) {
+            return JSON.parse(val);
+          }
+        },
+        codecB: {
+          name: 'codecB',
+          encode (val) {
+            val.encodedBy = 'codecB';
             return Buffer.from(JSON.stringify(val));
           },
           decode (val) {
@@ -205,5 +218,86 @@ describe('FeedStore', () => {
     const release = await fd.lock();
     expect(release).toBeDefined();
     await release();
+  });
+
+  test('createReadStream', async () => {
+    const feedStore = await FeedStore.create(
+      hypertrie(ram),
+      ram
+    );
+
+    const foo = await feedStore.openFeed('/foo');
+    const bar = await feedStore.openFeed('/bar');
+    await Promise.all([
+      pify(foo.append.bind(foo))('foo1'),
+      pify(bar.append.bind(bar))('bar1')
+    ]);
+
+    const stream = feedStore.createReadStream();
+    const liveStream = feedStore.createReadStream({ live: true });
+
+    const messages = [];
+    stream.on('data', (chunk) => {
+      messages.push(chunk.toString('utf8'));
+    });
+
+    const liveMessages = [];
+    liveStream.on('data', (chunk) => {
+      liveMessages.push(chunk.toString('utf8'));
+    });
+
+    await eos(stream);
+    expect(messages.sort()).toEqual(['bar1', 'foo1']);
+
+    const quz = await feedStore.openFeed('/quz');
+    await pify(quz.append.bind(quz))('quz1');
+    await wait(() => {
+      expect(liveMessages.sort()).toEqual(['bar1', 'foo1', 'quz1']);
+    });
+
+    liveStream.destroy();
+  });
+
+  test('createReadStreamByFilter', async () => {
+    const feedStore = await FeedStore.create(
+      hypertrie(ram),
+      ram
+    );
+
+    const foo = await feedStore.openFeed('/foo', { metadata: { topic: 'topic1' } });
+    const bar = await feedStore.openFeed('/bar');
+
+    await Promise.all([
+      pify(foo.append.bind(foo))('foo1'),
+      pify(bar.append.bind(bar))('bar1')
+    ]);
+
+    const stream = feedStore.createReadStreamByFilter(descriptor => descriptor.metadata.topic === 'topic1');
+    const liveStream = feedStore.createReadStreamByFilter(descriptor => descriptor.metadata.topic === 'topic1', { live: true });
+
+    const messages = [];
+    stream.on('data', (chunk) => {
+      messages.push(chunk.toString('utf8'));
+    });
+
+    const liveMessages = [];
+    liveStream.on('data', (chunk) => {
+      liveMessages.push(chunk.toString('utf8'));
+    });
+
+    await eos(stream);
+    expect(messages.sort()).toEqual(['foo1']);
+
+    const baz = await feedStore.openFeed('/baz');
+    await pify(baz.append.bind(baz))('baz1');
+
+    const quz = await feedStore.openFeed('/quz', { metadata: { topic: 'topic1' } });
+    await pify(quz.append.bind(quz))('quz1');
+
+    await wait(() => {
+      expect(liveMessages.sort()).toEqual(['foo1', 'quz1']);
+    });
+
+    liveStream.destroy();
   });
 });

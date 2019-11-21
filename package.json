@@ -25,13 +25,16 @@
     "coverage": "npm test -- --coverage",
     "coveralls": "npm run coverage && cat ./coverage/lcov.info | coveralls",
     "lint": "semistandard 'src/**/*.js'",
-    "prepublishOnly": "npm run test && npm run build",
-    "test": "npm run build:protobuf && jest --verbose --passWithNoTests src",
+    "prepublishOnly": "npm run build && npm run test",
+    "test": "jest --verbose --passWithNoTests src",
     "posttest": "npm run lint"
   },
   "browserslist": [
     "> 5%"
   ],
+  "jest": {
+    "testEnvironment": "node"
+  },
   "dependencies": {
     "@dxos/codec-protobuf": "^1.0.0",
     "buffer-json-encoding": "^1.0.2",
@@ -59,10 +62,12 @@
     "babel-plugin-inline-import": "^3.0.0",
     "coveralls": "^3.0.7",
     "del-cli": "^3.0.0",
+    "end-of-stream-promise": "^1.0.0",
     "jest": "^24.5.0",
     "random-access-memory": "^3.1.1",
     "semistandard": "^14.2.0",
-    "tempy": "^0.3.0"
+    "tempy": "^0.3.0",
+    "wait-for-expect": "^3.0.1"
   },
   "publishConfig": {
     "access": "public"
