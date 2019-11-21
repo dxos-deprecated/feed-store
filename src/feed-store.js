@@ -176,7 +176,7 @@ class FeedStore extends EventEmitter {
 
   /**
    * Get a descriptor by a path.
-*
+   *
    * @param {string} path
    * @returns {FeedDescriptor}
    */
