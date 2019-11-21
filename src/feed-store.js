@@ -4,6 +4,8 @@
 
 import { EventEmitter } from 'events';
 import assert from 'assert';
+import multi from 'multi-read-stream';
+import eos from 'end-of-stream';
 
 import Codec from '@dxos/codec-protobuf';
 
@@ -174,7 +176,7 @@ class FeedStore extends EventEmitter {
 
   /**
    * Get a descriptor by a path.
-   *
+*
    * @param {string} path
    * @returns {FeedDescriptor}
    */
@@ -195,12 +197,12 @@ class FeedStore extends EventEmitter {
   /**
    * Find a feed using a filter callback.
    *
-   * @param {descriptorCallback} callback
+   * @param {descriptorCallback} callback Filter function for the opened descriptors.
    * @returns {Hypercore}
    */
-  findFeed (cb) {
+  findFeed (callback) {
     const descriptor = this.getOpenedDescriptors()
-      .find(descriptor => cb(descriptor));
+      .find(descriptor => callback(descriptor));
 
     if (descriptor) {
       return descriptor.feed;
@@ -210,12 +212,12 @@ class FeedStore extends EventEmitter {
   /**
    * Filter feeds using a filter callback.
    *
-   * @param {descriptorCallback} callback
+   * @param {descriptorCallback} callback Filter function for the opened descriptors.
    * @returns {Hypercore[]}
    */
-  filterFeeds (cb) {
+  filterFeeds (callback) {
     const descriptors = this.getOpenedDescriptors()
-      .filter(descriptor => cb(descriptor));
+      .filter(descriptor => callback(descriptor));
 
     return descriptors.map(descriptor => descriptor.feed);
   }
@@ -223,14 +225,14 @@ class FeedStore extends EventEmitter {
   /**
    * Load feeds using a filter callback.
    *
-   * @param {descriptorCallback} callback
+   * @param {descriptorCallback} callback Filter function for the opened descriptors.
    * @returns {Promise<Hypercore[]>}
    */
-  async loadFeeds (cb) {
+  async loadFeeds (callback) {
     await this.ready();
 
     const descriptors = this.getDescriptors()
-      .filter(descriptor => cb(descriptor));
+      .filter(descriptor => callback(descriptor));
 
     return Promise.all(descriptors.map(descriptor => this._openFeed(descriptor)));
   }
@@ -342,6 +344,44 @@ class FeedStore extends EventEmitter {
       debug(err);
       throw err;
     }
+  }
+
+  /**
+   * Creates a ReadableStream from the feeds stored in FeedStore.
+   *
+   * @param {Object} [options] Options for the hypercore.createReadStream.
+   * @returns {ReadableStream}
+   */
+  createReadStream (options) {
+    return this.createReadStreamByFilter(() => true, options);
+  }
+
+  /**
+   * Creates a ReadableStream from multiple feeds using a filter function.
+   *
+   * @param {descriptorCallback} [callback] Filter function to select from which feeds to read.
+   * @param {Object} [options] Options for the hypercore.createReadStream.
+   * @returns {ReadableStream}
+   */
+  createReadStreamByFilter (callback, options) {
+    const streams = [];
+
+    this.filterFeeds(callback).forEach(feed => {
+      streams.push(feed.createReadStream(options));
+    });
+
+    const multiReader = multi.obj(streams);
+
+    const onFeed = (feed, descriptor) => {
+      if (callback(descriptor)) {
+        multiReader.add(feed.createReadStream(options));
+      }
+    };
+
+    this.on('feed', onFeed);
+    eos(multiReader, () => this.removeListener('feed', onFeed));
+
+    return multiReader;
   }
 
   /**
