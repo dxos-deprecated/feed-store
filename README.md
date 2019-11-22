@@ -72,13 +72,13 @@ import { FeedStore, getDescriptor } from '@dxos/feed-store';
 
 Creates and initializes a new FeedStore.
 
-- `database: Hypertrie`: Database for the metadata feeds.
 - `storage: RandomAccessStorage`: Storage used by the feeds to store their data.
 - `options`:
+  - `database: Hypertrie`: Defines a custom hypertrie database to index the feeds.
   - `feedOptions: Object`: Default hypercore options for each feed.
-  - `codecs: Object`: Define a list of available codecs to work with the feeds.
-  - `timeout: number`: Define the time (ms) to wait for open or close a feed. Default: `10 * 1000`.
-  - `hypercore: Hypercore`: Define the Hypercore class to use.
+  - `codecs: Object`: Defines a list of available codecs to work with the feeds.
+  - `timeout: number`: Defines the time (ms) to wait for open or close a feed. Default: `10 * 1000`.
+  - `hypercore: Hypercore`: Defines the Hypercore class to create feeds.
 
 #### `const feedStore = new FeedStore(database, storage, [options])`
 
@@ -178,13 +178,13 @@ Filter the opened feeds using a callback function.
 
 Creates a ReadableStream from the loaded feeds.
 
-- `options: Options for the hypercore.createReadStream`
+- `options: Object`: Options for the hypercore.createReadStream.
 
 #### `feedStore.createReadStreamByFilter(descriptor => Boolean, [options]) -> ReadableStream`
 
 Creates a ReadableStream from the loaded feeds filter by a callback function.
 
-- `options: Options for the hypercore.createReadStream`
+- `options: Object`: Options for the hypercore.createReadStream.
 
 ### Events
 
