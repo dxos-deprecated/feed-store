@@ -86,7 +86,7 @@ Creates a new FeedStore `without wait for their initialization.`
 
 > The initialization happens by running: `await feedStore.initialize()`
 
-#### `await feedStore.openFeed(path, [options]) -> Hypercore`
+#### `feedStore.openFeed(path, [options]) -> Promise<Hypercore>`
 
 Creates a new hypercore feed identified by a string path.
 
@@ -97,21 +97,21 @@ Creates a new hypercore feed identified by a string path.
   - `metadata: Object`: Serializable object with custom data about the feed.
   - `[...hypercoreOptions]`: Hypercore options.
 
-#### `await feedStore.closeFeed(path)`
+#### `feedStore.closeFeed(path) -> Promise`
 
 Close a feed by the path.
 
-#### `await feedStore.deleteDescriptor(path)`
+#### `feedStore.deleteDescriptor(path) -> Promise`
 
 Remove a descriptor from the database by the path.
 
 > This operation would not close the feed.
 
-#### `await feedStore.close()`
+#### `feedStore.close() -> Promise`
 
 Close the hypertrie database and their feeds.
 
-#### `await feedStore.loadFeeds((descriptor) => Boolean) -> Hypercore[]`
+#### `feedStore.loadFeeds((descriptor) => Boolean) -> Promise<Hypercore[]>`
 
 Loads feeds using a function to filter what feeds you want to load from the database.
 
@@ -119,7 +119,7 @@ Loads feeds using a function to filter what feeds you want to load from the data
 const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag === 'important')
 ```
 
-#### `await feedStore.ready()`
+#### `feedStore.ready() -> Promise`
 
 Wait for feedStore to be ready.
 
@@ -173,6 +173,18 @@ Find a opened feed using a callback function.
 Filter the opened feeds using a callback function.
 
 - `descriptor: FeedDescriptor`
+
+#### `feedStore.createReadStream([options]) -> ReadableStream`
+
+Creates a ReadableStream from the feeds stored in FeedStore.
+
+- `options: Options for the hypercore.createReadStream`
+
+#### `feedStore.createReadStreamByFilter(descriptor => Boolean, [options]) -> ReadableStream`
+
+Creates a ReadableStream from the feeds stored in FeedStore.
+
+- `options: Options for the hypercore.createReadStream`
 
 ### Events
 
