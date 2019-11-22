@@ -366,16 +366,17 @@ class FeedStore extends EventEmitter {
    * @returns {ReadableStream}
    */
   createReadStreamByFilter (callback, options) {
-    const streams = [];
+    const streams = new Map();
 
     this.filterFeeds(callback).forEach(feed => {
-      streams.push(feed.createReadStream(options));
+      streams.set(feed.key.toString('hex'), feed.createReadStream(options));
     });
 
-    const multiReader = multi.obj(streams);
+    const multiReader = multi.obj(Array.from(streams.values()));
 
     const onFeed = (feed, descriptor) => {
-      if (callback(descriptor)) {
+      if (!streams.has(feed.key.toString('hex')) && callback(descriptor)) {
+        streams.set(feed.key.toString('hex'), feed.createReadStream(options));
         multiReader.add(feed.createReadStream(options));
       }
     };
@@ -492,7 +493,7 @@ class FeedStore extends EventEmitter {
     feed.on('append', () => this.emit('append', feed, descriptor));
     feed.on('download', (...args) => this.emit('download', ...args, feed, descriptor));
 
-    process.nextTick(() => this.emit('feed', feed, descriptor));
+    this.emit('feed', feed, descriptor);
   }
 }
 
