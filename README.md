@@ -176,13 +176,13 @@ Filter the opened feeds using a callback function.
 
 #### `feedStore.createReadStream([options]) -> ReadableStream`
 
-Creates a ReadableStream from the feeds stored in FeedStore.
+Creates a ReadableStream from the loaded feeds.
 
 - `options: Options for the hypercore.createReadStream`
 
 #### `feedStore.createReadStreamByFilter(descriptor => Boolean, [options]) -> ReadableStream`
 
-Creates a ReadableStream from the feeds stored in FeedStore.
+Creates a ReadableStream from the loaded feeds filter by a callback function.
 
 - `options: Options for the hypercore.createReadStream`
 

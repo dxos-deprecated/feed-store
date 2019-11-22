@@ -2,6 +2,8 @@
 // Copyright 2019 DxOS.
 //
 
+/** @typedef {(descriptor: FeedDescriptor) => boolean} DescriptorCallback */
+
 import { EventEmitter } from 'events';
 import assert from 'assert';
 import multi from 'multi-read-stream';
@@ -195,9 +197,9 @@ class FeedStore extends EventEmitter {
   }
 
   /**
-   * Find a feed using a filter callback.
+   * Find a loaded feed using a filter callback.
    *
-   * @param {descriptorCallback} callback Filter function for the opened descriptors.
+   * @param {DescriptorCallback} callback
    * @returns {Hypercore}
    */
   findFeed (callback) {
@@ -210,9 +212,9 @@ class FeedStore extends EventEmitter {
   }
 
   /**
-   * Filter feeds using a filter callback.
+   * Filter the loaded feeds using a filter callback.
    *
-   * @param {descriptorCallback} callback Filter function for the opened descriptors.
+   * @param {DescriptorCallback} callback
    * @returns {Hypercore[]}
    */
   filterFeeds (callback) {
@@ -225,7 +227,7 @@ class FeedStore extends EventEmitter {
   /**
    * Load feeds using a filter callback.
    *
-   * @param {descriptorCallback} callback Filter function for the opened descriptors.
+   * @param {DescriptorCallback} callback
    * @returns {Promise<Hypercore[]>}
    */
   async loadFeeds (callback) {
@@ -347,7 +349,7 @@ class FeedStore extends EventEmitter {
   }
 
   /**
-   * Creates a ReadableStream from the feeds stored in FeedStore.
+   * Creates a ReadableStream from the loaded feeds.
    *
    * @param {Object} [options] Options for the hypercore.createReadStream.
    * @returns {ReadableStream}
@@ -357,9 +359,9 @@ class FeedStore extends EventEmitter {
   }
 
   /**
-   * Creates a ReadableStream from multiple feeds using a filter function.
+   * Creates a ReadableStream from the loaded feeds filter by a callback function.
    *
-   * @param {descriptorCallback} [callback] Filter function to select from which feeds to read.
+   * @param {DescriptorCallback} callback Filter function to select from which feeds to read.
    * @param {Object} [options] Options for the hypercore.createReadStream.
    * @returns {ReadableStream}
    */
@@ -493,12 +495,5 @@ class FeedStore extends EventEmitter {
     process.nextTick(() => this.emit('feed', feed, descriptor));
   }
 }
-
-/**
- * Callback to filter and/or find descriptors.
- *
- * @callback descriptorCallback
- * @param {FeedDescriptor} descriptor
- */
 
 export default FeedStore;
