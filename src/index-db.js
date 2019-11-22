@@ -10,7 +10,7 @@ import pify from 'pify';
 class IndexDB {
   /**
    * @constructor
-   * @param {HyperTrie} db
+   * @param {Hypertrie} db
    * @param {object} codec
    */
   constructor (db, codec) {
@@ -18,7 +18,6 @@ class IndexDB {
     console.assert(codec);
 
     this._db = {
-      ready: pify(db.ready.bind(db)),
       put: pify(db.put.bind(db)),
       get: pify(db.get.bind(db)),
       delete: pify(db.del.bind(db)),

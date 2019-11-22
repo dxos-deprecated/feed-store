@@ -8,19 +8,15 @@ import { EventEmitter } from 'events';
 import assert from 'assert';
 import multi from 'multi-read-stream';
 import eos from 'end-of-stream';
-
-import Codec from '@dxos/codec-protobuf';
+import hypertrie from 'hypertrie';
+import codec from 'buffer-json-encoding';
 
 import { FeedDescriptor, getDescriptor } from './feed-descriptor';
 import IndexDB from './index-db';
-import schema from './schema.json';
 
 const debug = require('debug')('megafeed:feed-map');
 
-const codec = new Codec({ verify: true });
-codec.loadFromJSON(JSON.parse(schema));
-
-const STORE_NAMESPACE = 'feed';
+const STORE_NAMESPACE = '@feedstore';
 
 /**
  * FeedStore
@@ -35,17 +31,17 @@ class FeedStore extends EventEmitter {
    * Create and initialize a new FeedStore
    *
    * @static
-   * @param {HyperTrie} db
    * @param {RandomAccessStorage} storage RandomAccessStorage to use by default by the feeds.
    * @param {Object} options
+   * @param {Hypertrie} options.database Defines a custom hypertrie database to index the feeds.
    * @param {Object} options.feedOptions Default options for each feed.
    * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
    * @param {number} options.timeout Defines how much to wait for open or close a feed.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    * @returns {Promise<FeedStore>}
    */
-  static async create (db, storage, options = {}) {
-    const feedStore = new FeedStore(db, storage, options);
+  static async create (storage, options = {}) {
+    const feedStore = new FeedStore(storage, options);
     await feedStore.initialize();
     return feedStore;
   }
@@ -62,25 +58,22 @@ class FeedStore extends EventEmitter {
   /**
    * constructor
    *
-   * @param {HyperTrie} db
    * @param {RandomAccessStorage} storage RandomAccessStorage to use by default by the feeds.
    * @param {Object} options
+   * @param {Hypertrie} options.database Defines a custom hypertrie database to index the feeds.
    * @param {Object} options.feedOptions Default options for each feed.
    * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
    * @param {number} options.timeout Defines how much to wait for open or close a feed.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    */
-  constructor (db, storage, options = {}) {
+  constructor (storage, options = {}) {
     super();
 
-    const { feedOptions = {}, codecs = {}, timeout, hypercore } = options;
+    const { database = hypertrie(storage), feedOptions = {}, codecs = {}, timeout, hypercore } = options;
 
     this._indexDB = new IndexDB(
-      db,
-      {
-        encode: message => codec.encode({ type: 'Feed', message }),
-        decode: buffer => codec.decode(buffer, false)
-      }
+      database,
+      codec
     );
 
     this._defaultStorage = storage;

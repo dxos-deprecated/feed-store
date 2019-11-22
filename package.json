@@ -18,9 +18,8 @@
   "main": "index.js",
   "browser": "dist/index.js",
   "scripts": {
-    "build": "npm run clean && npm run build:protobuf && npm run build:babel",
+    "build": "npm run clean && npm run build:babel",
     "build:babel": "babel ./src --out-dir ./dist --ignore \"**/*.test.js\" --source-maps",
-    "build:protobuf": "pbjs -t json src/schema.proto -o src/schema.json",
     "clean": "del-cli dist",
     "coverage": "npm test -- --coverage",
     "coveralls": "npm run coverage && cat ./coverage/lcov.info | coveralls",
@@ -36,7 +35,6 @@
     "testEnvironment": "node"
   },
   "dependencies": {
-    "@dxos/codec-protobuf": "^1.0.0",
     "buffer-json-encoding": "^1.0.2",
     "debug": "^4.1.1",
     "end-of-stream": "^1.4.4",
@@ -48,7 +46,6 @@
     "p-timeout": "^3.2.0",
     "pify": "^4.0.1",
     "random-access-file": "^2.1.0",
-    "sodium-universal": "^2.0.0",
     "source-map-support": "^0.5.12"
   },
   "devDependencies": {
