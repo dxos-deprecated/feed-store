@@ -251,7 +251,7 @@ class FeedStore extends EventEmitter {
    * @param {Object} options
    * @param {Buffer} options.key
    * @param {Buffer} options.secretKey
-   * @param {string} options.valueEncoding
+   * @param {Object|string} options.valueEncoding
    * @param {Object} options.metadata
    * @returns {Hypercore}
    */
@@ -408,7 +408,9 @@ class FeedStore extends EventEmitter {
     const { key, secretKey, metadata } = options;
     let { valueEncoding = defaultOptions.valueEncoding } = options;
 
-    assert(!secretKey || (secretKey && key), 'You cannot have a secretKey without a publicKey.');
+    assert(!secretKey || (secretKey && key), 'Missing publicKey.');
+
+    // TODO(burdon): Support object (default encoding).
     assert(!valueEncoding || typeof valueEncoding === 'string', 'The valueEncoding can only be string.');
 
     valueEncoding = this._codecs[valueEncoding] || valueEncoding;

@@ -29,8 +29,8 @@ class FeedDescriptor {
    *
    * @param {Object} options
    * @param {RandomAccessStorage} options.storage
-   * @param {string} options.path
-   * @param {Buffer} options.key
+   * @param {string} options.path - TODO(burdon): What is this?
+   * @param {Buffer} options.key - TODO(burdon): What is this?
    * @param {Buffer} options.secretKey
    * @param {Object|string} options.valueEncoding
    * @param {number} [options.timeout=10000]
@@ -52,12 +52,26 @@ class FeedDescriptor {
       'FeedDescriptor: valueEncoding must be a string or a codec object with a name prop that could be serializable.');
 
     this._storage = storage;
-    this._path = path;
-    this._key = key;  // TODO(burdon): publicKey?
+    this._hypercore = hypercore;
+
+    // TODO(burdon): Use proto object for values below.
+
     this._secretKey = secretKey;
     this._valueEncoding = valueEncoding;
-    this._timeout = timeout;
-    this._hypercore = hypercore;
+
+    this._key = key;  // TODO(burdon): publicKey?
+    if (!this._key) {
+      const { publicKey, secretKey } = crypto.keyPair();
+      this._key = publicKey;
+      // TODO(burdon): Potentially overwrites secretKey (misconfigured).
+      this._secretKey = secretKey;
+    }
+
+    this._path = path;
+    if (!this._path) {
+      // TODO(burdon): Default is confusing.
+      this._path = this._key.toString('hex');
+    }
 
     if (Buffer.isBuffer(metadata)) {
       this._metadata = bufferJson.decode(metadata);
@@ -65,22 +79,16 @@ class FeedDescriptor {
       this._metadata = Object.assign({}, metadata);
     }
 
-    if (!this._key) {
-      const { publicKey, secretKey } = crypto.keyPair();
-      this._key = publicKey;
-      this._secretKey = secretKey;
-    }
+    // TODO(burdon): End of proto block.
+
+    this._timeout = timeout;
+
+    this._feed = null;
 
     // TODO(burdon): What is this?
     this._discoveryKey = crypto.discoveryKey(this._key);
 
-    if (!this._path) {
-      this._path = this._key.toString('hex');
-    }
-
     this._locker = new Locker();
-
-    this._feed = null;
   }
 
   /**
