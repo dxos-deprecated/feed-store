@@ -45,6 +45,7 @@ class FeedStore extends EventEmitter {
    * @returns {Promise<FeedStore>}
    */
   static async create (db, storage, options = {}) {
+    // TODO(burdon): Asserts?
     const feedStore = new FeedStore(db, storage, options);
     await feedStore.initialize();
     return feedStore;
@@ -55,6 +56,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {FeedDescriptor} descriptor
    */
+  // TODO(burdon): Why is this required?
   static getDescriptor (feed) {
     return getDescriptor(feed);
   }
@@ -73,6 +75,7 @@ class FeedStore extends EventEmitter {
   constructor (db, storage, options = {}) {
     super();
 
+    // TODO(burdon): Remove codecs -- user should track this? Keep hypercore API and keep this class simple.
     const { feedOptions = {}, codecs = {}, timeout, hypercore } = options;
 
     this._indexDB = new IndexDB(
@@ -135,6 +138,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {FeedStore}
    */
+  // TODO(burdon): Remove.
   setCodecs (codecs) {
     this._codecs = Object.assign({}, codecs);
 
@@ -172,7 +176,7 @@ class FeedStore extends EventEmitter {
    * @param {Buffer} key
    * @returns {FeedDescriptor}
    */
-  getDescriptorByKey (key) {
+  getDescriptorsByKey (key) {
     return this.getDescriptors().find(descriptor => descriptor.key.equals(key));
   }
 
@@ -182,7 +186,7 @@ class FeedStore extends EventEmitter {
    * @param {string} path
    * @returns {FeedDescriptor}
    */
-  getDescriptorByPath (path) {
+  getDescriptorsByPath (path) {
     return this.getDescriptors().find(descriptor => descriptor.path === path);
   }
 
@@ -191,6 +195,7 @@ class FeedStore extends EventEmitter {
    *
    * @returns {Hypercore[]}
    */
+  // TODO(burdon): getOpenedFeeds.
   getFeeds () {
     return this.getOpenedDescriptors()
       .map(descriptor => descriptor.feed);
@@ -202,6 +207,7 @@ class FeedStore extends EventEmitter {
    * @param {DescriptorCallback} callback
    * @returns {Hypercore}
    */
+  // TODO(burdon): getFeedsByFilter.
   findFeed (callback) {
     const descriptor = this.getOpenedDescriptors()
       .find(descriptor => callback(descriptor));
@@ -217,6 +223,7 @@ class FeedStore extends EventEmitter {
    * @param {DescriptorCallback} callback
    * @returns {Hypercore[]}
    */
+  // TODO(burdon): Same as above?
   filterFeeds (callback) {
     const descriptors = this.getOpenedDescriptors()
       .filter(descriptor => callback(descriptor));
@@ -262,13 +269,14 @@ class FeedStore extends EventEmitter {
 
     const { key } = options;
 
-    let descriptor = this.getDescriptorByPath(path);
+    let descriptor = this.getDescriptorsByPath(path);
 
+    // TODO(burdon): Error message format.
     if (descriptor && key && !key.equals(descriptor.key)) {
       throw new Error(`FeedStore: You are trying to open a feed with a different public key "${key.toString('hex')}".`);
     }
 
-    if (!descriptor && key && this.getDescriptorByKey(key)) {
+    if (!descriptor && key && this.getDescriptorsByKey(key)) {
       throw new Error(`FeedStore: There is already a feed registered with the public key "${key.toString('hex')}"`);
     }
 
@@ -290,10 +298,10 @@ class FeedStore extends EventEmitter {
 
     await this.ready();
 
-    const descriptor = this.getDescriptorByPath(path);
-
+    const descriptor = this.getDescriptorsByPath(path);
     if (!descriptor) {
-      throw new Error('Feed not found to close.');
+      // TODO(burdon): Example of message (no "you", etc.)
+      throw new Error(`Invalid path: ${path}`);
     }
 
     return descriptor.close();
@@ -308,11 +316,12 @@ class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async deleteDescriptor (path) {
+    // TODO(burdon): Discuss static vs. runtime errors.
     assert(path, 'The path is required.');
 
     await this.ready();
 
-    const descriptor = this.getDescriptorByPath(path);
+    const descriptor = this.getDescriptorsByPath(path);
 
     let release;
     try {

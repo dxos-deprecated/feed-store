@@ -12,6 +12,8 @@ import eos from 'end-of-stream-promise';
 
 import FeedStore from './feed-store';
 
+// TODO(burdon): Don't test errors by human text string (brittle).
+
 describe('FeedStore', () => {
   let booksFeed;
   let usersFeed;
@@ -25,7 +27,6 @@ describe('FeedStore', () => {
 
   test('Config with db and valueEncoding utf-8', async () => {
     feedStore = await createDefault();
-
     expect(feedStore).toBeInstanceOf(FeedStore);
   });
 
@@ -53,7 +54,7 @@ describe('FeedStore', () => {
   });
 
   test('Create and close a feed', async () => {
-    await expect(feedStore.closeFeed('/fooo')).rejects.toThrow(/Feed not found/);
+    await expect(feedStore.closeFeed('/fooo')).rejects.toThrow(/Invalid/);
     await feedStore.closeFeed('/groups');
     expect(groupsFeed.closed).toBe(true);
   });
@@ -61,8 +62,8 @@ describe('FeedStore', () => {
   test('Descriptors', async () => {
     expect(feedStore.getDescriptors().map(fd => fd.path)).toEqual(['/books', '/users', '/groups']);
     expect(feedStore.getOpenedDescriptors().map(fd => fd.path)).toEqual(['/books', '/users']);
-    expect(feedStore.getDescriptorByKey(booksFeed.key)).toHaveProperty('path', '/books');
-    expect(feedStore.getDescriptorByPath('/books')).toHaveProperty('key', booksFeed.key);
+    expect(feedStore.getDescriptorsByKey(booksFeed.key)).toHaveProperty('path', '/books');
+    expect(feedStore.getDescriptorsByPath('/books')).toHaveProperty('key', booksFeed.key);
   });
 
   test('Feeds', async () => {
@@ -76,7 +77,7 @@ describe('FeedStore', () => {
     const [feed] = await feedStore.loadFeeds(fd => fd.path === '/groups');
     expect(feed).toBeDefined();
     expect(feed.key).toEqual(groupsFeed.key);
-    expect(feedStore.getDescriptorByPath('/groups')).toHaveProperty('opened', true);
+    expect(feedStore.getDescriptorsByPath('/groups')).toHaveProperty('opened', true);
   });
 
   test('Close feedStore and their feeds', async () => {
@@ -86,7 +87,6 @@ describe('FeedStore', () => {
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
     feedStore = await createDefault();
-
     expect(feedStore).toBeInstanceOf(FeedStore);
     expect(feedStore.getDescriptors().length).toBe(3);
 
@@ -138,6 +138,7 @@ describe('FeedStore', () => {
         }
       }
     };
+
     const feedStore = await FeedStore.create(hypertrie(ram), ram, options);
     expect(feedStore).toBeInstanceOf(FeedStore);
 
@@ -168,7 +169,7 @@ describe('FeedStore', () => {
 
     await expect(feedStore.openFeed('/foo')).rejects.toThrow(/open error/);
 
-    const fd = feedStore.getDescriptorByPath('/foo');
+    const fd = feedStore.getDescriptorsByPath('/foo');
     const release = await fd.lock();
     expect(release).toBeDefined();
     await release();

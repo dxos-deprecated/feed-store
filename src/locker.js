@@ -4,15 +4,18 @@
 
 import mutexify from 'mutexify';
 
+/**
+ * Async mutex.
+ */
 class Locker {
   constructor () {
     this._lock = mutexify();
   }
 
-  lock () {
+  async lock () {
     return new Promise((resolve) => {
-      this._lock((cbRelease) => {
-        const release = () => new Promise(resolve => cbRelease(resolve));
+      this._lock((callback) => {
+        const release = () => new Promise(resolve => callback(resolve));
         resolve(release);
       });
     });

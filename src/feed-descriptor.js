@@ -15,6 +15,7 @@ import pTimeout from 'p-timeout';
 
 import Locker from './locker';
 
+// TODO(burdon): What is this for?
 const kDescriptor = Symbol('descriptor');
 
 /**
@@ -37,8 +38,10 @@ class FeedDescriptor {
    * @param {Hypercore} options.hypercore
    */
   constructor (options = {}) {
+    // TODO(burdon): Anything that is required should not be an option.
     const { storage, path, key, secretKey, valueEncoding, metadata = {}, timeout = 10 * 1000, hypercore = defaultHypercore } = options;
 
+    // TODO(burdon): Adding human sentences for programmer errors seems wrong? To discuss.
     assert(!path || (typeof path === 'string' && path.length > 0),
       'FeedDescriptor: path is required.');
     assert(!key || (Buffer.isBuffer(key) && key.length === sodium.crypto_sign_PUBLICKEYBYTES),
@@ -50,7 +53,7 @@ class FeedDescriptor {
 
     this._storage = storage;
     this._path = path;
-    this._key = key;
+    this._key = key;  // TODO(burdon): publicKey?
     this._secretKey = secretKey;
     this._valueEncoding = valueEncoding;
     this._timeout = timeout;
@@ -68,6 +71,7 @@ class FeedDescriptor {
       this._secretKey = secretKey;
     }
 
+    // TODO(burdon): What is this?
     this._discoveryKey = crypto.discoveryKey(this._key);
 
     if (!this._path) {
@@ -157,6 +161,7 @@ class FeedDescriptor {
    *
    * @returns {function} release
    */
+  // TODO(burdon): Why is this public?
   async lock () {
     return this._locker.lock();
   }
@@ -164,8 +169,7 @@ class FeedDescriptor {
   /**
    * Open an Hypercore feed based on the related feed options.
    *
-   * This is an atomic operation, FeedDescriptor makes
-   * sure that the feed is not going to open again.
+   * This is an atomic operation, FeedDescriptor makes sure that the feed is not going to open again.
    *
    * @returns {Promise<Hypercore>}
    */
@@ -208,8 +212,7 @@ class FeedDescriptor {
   }
 
   /**
-   * Defines the real path where the Hypercore is going
-   * to work with the RandomAccessStorage specified.
+   * Defines the real path where the Hypercore is going to work with the RandomAccessStorage specified.
    *
    * @private
    * @param {string} dir
@@ -236,6 +239,7 @@ class FeedDescriptor {
       }
     );
 
+    // TODO(burdon): It feels wrong to mutate an object defined in another project.
     this._feed[kDescriptor] = this;
 
     await pify(this._feed.ready.bind(this._feed))();

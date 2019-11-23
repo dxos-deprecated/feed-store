@@ -1,9 +1,23 @@
+//
+// Copyright 2019 DxOS.
+//
+
 syntax = "proto3";
 
+package dxos.feed;
+
+// TODO(burdon): FeedDescriptor?
 message Feed {
-  required string path = 1;
-  required bytes key = 2;
+  string path = 1;
+
+  // TODO(burdon): Public key?
+  bytes key = 2;
+
+  // TODO(burdon): Should this be in a separate more secure key store?
   bytes secretKey = 3;
+
   string valueEncoding = 4;
+
+  // TODO(burdon): Remove (no arbitrary/untyped data: key value if necessary).
   bytes metadata = 5;
 }
