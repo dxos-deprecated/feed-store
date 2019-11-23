@@ -5,20 +5,20 @@
 [![Build Status](https://travis-ci.com/dxos/feed-store.svg?branch=master)](https://travis-ci.com/dxos/feed-store)
 [![Coverage Status](https://coveralls.io/repos/github/dxos/feed-store/badge.svg?branch=master)](https://coveralls.io/github/dxos/feed-store?branch=master)
 ![npm (scoped)](https://img.shields.io/npm/v/@dxos/feed-store)
- [![Greenkeeper badge](https://badges.greenkeeper.io/dxos/feed-store.svg)](https://greenkeeper.io/)
+[![Greenkeeper badge](https://badges.greenkeeper.io/dxos/feed-store.svg)](https://greenkeeper.io/)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/standard/semistandard)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
-FeedStore was created to administrate your hypercore feeds in a similar abstraction to work with files in a FileSystem.
+FeedStore was created to manage hypercore feeds in a similar abstraction to work with files in a FileSystem.
 
-Each feed created by FeedStore works with an underlying object `descriptor` which provides additional information about the feed and how to work with it.
+Each feed created by FeedStore works with an underlying object `descriptor` which provides additional information about the feed.
 
 Features:
 - Open/Close hypercore feeds.
 - Load hypercore feeds by demand.
 - Persist feeds metadata into a hypertrie database.
 - Search feeds by a path or any property related to the feed.
-- Add metadata to your feed.
+- Track additional metadata for each feed.
 - Support for multiple codecs.
 
 ## Install
@@ -28,6 +28,9 @@ $ npm install @dxos/feed-store
 ```
 
 ## Usage
+
+// TODO(burdon): Example code gets out of date and is then worse than no example; better to reference runnable example.js?
+// TODO(burdon): Better to have more comprehensive jsdoc that comments here?
 
 ```javascript
 import hypertrie from 'hypertrie';

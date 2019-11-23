@@ -20,6 +20,7 @@ const debug = require('debug')('megafeed:feed-map');
 const codec = new Codec({ verify: true });
 codec.loadFromJSON(JSON.parse(schema));
 
+// TODO(burdon): Is this configurable?
 const STORE_NAMESPACE = 'feed';
 
 /**
@@ -64,27 +65,24 @@ class FeedStore extends EventEmitter {
   /**
    * constructor
    *
+   * TODO(burdon): @typedefs for external packages?
    * @param {HyperTrie} db
    * @param {RandomAccessStorage} storage RandomAccessStorage to use by default by the feeds.
    * @param {Object} options
    * @param {Object} options.feedOptions Default options for each feed.
-   * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
-   * @param {number} options.timeout Defines how much to wait for open or close a feed.
+   * @param {Object} options.codecs Defines a map of codecs for feed encoding/decoding.
+   * @param {number} options.timeout Open/close timeout.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    */
   constructor (db, storage, options = {}) {
     super();
 
-    // TODO(burdon): Remove codecs -- user should track this? Keep hypercore API and keep this class simple.
     const { feedOptions = {}, codecs = {}, timeout, hypercore } = options;
 
-    this._indexDB = new IndexDB(
-      db,
-      {
-        encode: message => codec.encode({ type: 'Feed', message }),
-        decode: buffer => codec.decode(buffer, false)
-      }
-    );
+    this._indexDB = new IndexDB(db, {
+      encode: message => codec.encode({ type: 'Feed', message }),
+      decode: buffer => codec.decode(buffer, false)
+    });
 
     this._defaultStorage = storage;
 
@@ -94,11 +92,11 @@ class FeedStore extends EventEmitter {
 
     this._hypercore = hypercore;
 
-    this.setCodecs(codecs);
-
     this._descriptors = new Map();
 
     this._ready = false;
+
+    this.setCodecs(codecs);
   }
 
   /**
@@ -138,13 +136,13 @@ class FeedStore extends EventEmitter {
    *
    * @returns {FeedStore}
    */
-  // TODO(burdon): Remove.
   setCodecs (codecs) {
     this._codecs = Object.assign({}, codecs);
 
-    Object.keys(this._codecs).forEach((prop) => {
-      if (!this._codecs[prop].name) {
-        this._codecs[prop].name = prop;
+    // TODO(burdon): Why?
+    Object.keys(this._codecs).forEach((name) => {
+      if (!this._codecs[name].name) {
+        this._codecs[name].name = name;
       }
     });
 
@@ -165,9 +163,8 @@ class FeedStore extends EventEmitter {
    *
    * @returns {FeedDescriptor[]}
    */
-  getOpenedDescriptors () {
-    return this.getDescriptors()
-      .filter(descriptor => descriptor.opened);
+  getOpenDescriptors () {
+    return this.getDescriptors().filter(descriptor => descriptor.opened);
   }
 
   /**
@@ -197,8 +194,7 @@ class FeedStore extends EventEmitter {
    */
   // TODO(burdon): getOpenedFeeds.
   getFeeds () {
-    return this.getOpenedDescriptors()
-      .map(descriptor => descriptor.feed);
+    return this.getOpenDescriptors().map(descriptor => descriptor.feed);
   }
 
   /**
@@ -209,8 +205,7 @@ class FeedStore extends EventEmitter {
    */
   // TODO(burdon): getFeedsByFilter.
   findFeed (callback) {
-    const descriptor = this.getOpenedDescriptors()
-      .find(descriptor => callback(descriptor));
+    const descriptor = this.getOpenDescriptors().find(descriptor => callback(descriptor));
 
     if (descriptor) {
       return descriptor.feed;
@@ -225,8 +220,7 @@ class FeedStore extends EventEmitter {
    */
   // TODO(burdon): Same as above?
   filterFeeds (callback) {
-    const descriptors = this.getOpenedDescriptors()
-      .filter(descriptor => callback(descriptor));
+    const descriptors = this.getOpenDescriptors().filter(descriptor => callback(descriptor));
 
     return descriptors.map(descriptor => descriptor.feed);
   }
@@ -240,14 +234,13 @@ class FeedStore extends EventEmitter {
   async loadFeeds (callback) {
     await this.ready();
 
-    const descriptors = this.getDescriptors()
-      .filter(descriptor => callback(descriptor));
+    const descriptors = this.getDescriptors().filter(descriptor => callback(descriptor));
 
     return Promise.all(descriptors.map(descriptor => this._openFeed(descriptor)));
   }
 
   /**
-   * Open a feed to FeedStore.
+   * Opens an existing feed or creates a new one.
    *
    * If the feed already exists but is not loaded it will load the feed instead of
    * creating a new one.
@@ -284,6 +277,7 @@ class FeedStore extends EventEmitter {
       descriptor = this._createDescriptor(path, options);
     }
 
+    // TODO(burdon): Why have internal methods?
     return this._openFeed(descriptor);
   }
 
@@ -349,7 +343,7 @@ class FeedStore extends EventEmitter {
     await this.ready();
 
     try {
-      await Promise.all(this.getOpenedDescriptors().map(fd => fd.close()));
+      await Promise.all(this.getOpenDescriptors().map(fd => fd.close()));
       await this._indexDB.close();
     } catch (err) {
       debug(err);

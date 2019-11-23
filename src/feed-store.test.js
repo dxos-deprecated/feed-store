@@ -61,7 +61,7 @@ describe('FeedStore', () => {
 
   test('Descriptors', async () => {
     expect(feedStore.getDescriptors().map(fd => fd.path)).toEqual(['/books', '/users', '/groups']);
-    expect(feedStore.getOpenedDescriptors().map(fd => fd.path)).toEqual(['/books', '/users']);
+    expect(feedStore.getOpenDescriptors().map(fd => fd.path)).toEqual(['/books', '/users']);
     expect(feedStore.getDescriptorsByKey(booksFeed.key)).toHaveProperty('path', '/books');
     expect(feedStore.getDescriptorsByPath('/books')).toHaveProperty('key', booksFeed.key);
   });
@@ -82,7 +82,7 @@ describe('FeedStore', () => {
 
   test('Close feedStore and their feeds', async () => {
     await feedStore.close();
-    expect(feedStore.getOpenedDescriptors().length).toBe(0);
+    expect(feedStore.getOpenDescriptors().length).toBe(0);
   });
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
@@ -92,7 +92,7 @@ describe('FeedStore', () => {
 
     const booksFeed = await feedStore.openFeed('/books');
     const [usersFeed] = await feedStore.loadFeeds(fd => fd.path === '/users');
-    expect(feedStore.getOpenedDescriptors().length).toBe(2);
+    expect(feedStore.getOpenDescriptors().length).toBe(2);
 
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
     await expect(pify(usersFeed.head.bind(usersFeed))()).resolves.toBe('alice');
