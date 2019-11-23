@@ -2,7 +2,13 @@
 // Copyright 2019 DxOS.
 //
 
-/** @typedef {(descriptor: FeedDescriptor) => boolean} DescriptorCallback */
+/**
+ * TODO(burdon): Invalid type syntax.
+ * @typedef {(descriptor: FeedDescriptor) => boolean} DescriptorCallback
+ *
+ * @typedef Hypercore
+ * @typedef RandomAccessStorage
+ */
 
 import { EventEmitter } from 'events';
 import assert from 'assert';
@@ -96,6 +102,7 @@ class FeedStore extends EventEmitter {
 
     this._ready = false;
 
+    // TODO(burdon): Consider removing this and have the client manage codecs?
     this.setCodecs(codecs);
   }
 
@@ -115,10 +122,13 @@ class FeedStore extends EventEmitter {
       })
     );
 
+    // TODO(burdon): Why not wait for this? (i.e., ready after initialize).
     process.nextTick(() => {
       this._ready = true;
       this.emit('ready');
     });
+
+    return this;
   }
 
   async ready () {
@@ -157,6 +167,12 @@ class FeedStore extends EventEmitter {
   getDescriptors () {
     return Array.from(this._descriptors.values());
   }
+
+  // TODO(burdon): Wrapper object that contains Feed and descriptor { feed, descriptor } (fewer methods).
+  // TODO(burdon): Better to have fewer methods. Could provide static filters. Easy to add more.
+  // E.g., feed.getDescriptors(FeedStore.isOpen);
+  // E.g., feed.getDescriptors(FeedStore.hasKey(key));
+  // E.g., feed.getDescriptors(FeedStore.hasPath(path));
 
   /**
    * Get the list of the opened descriptors.
@@ -241,9 +257,7 @@ class FeedStore extends EventEmitter {
 
   /**
    * Opens an existing feed or creates a new one.
-   *
-   * If the feed already exists but is not loaded it will load the feed instead of
-   * creating a new one.
+   * If the feed already exists but is not loaded it will load the feed instead of creating a new one.
    *
    * Similar to fs.open
    *
@@ -304,6 +318,7 @@ class FeedStore extends EventEmitter {
   /**
    * Remove a descriptor from the indexDB by the path.
    *
+   * TODO(burdon): Why?
    * IMPORTANT: This operation would not close the feed.
    *
    * @param {string} path
@@ -311,7 +326,7 @@ class FeedStore extends EventEmitter {
    */
   async deleteDescriptor (path) {
     // TODO(burdon): Discuss static vs. runtime errors.
-    assert(path, 'The path is required.');
+    assert(path, 'Missing path');
 
     await this.ready();
 
@@ -410,9 +425,8 @@ class FeedStore extends EventEmitter {
 
     assert(!secretKey || (secretKey && key), 'Missing publicKey.');
 
-    // TODO(burdon): Support object (default encoding).
+    // TODO(burdon): Support object (default encoding). Specify codec directly.
     assert(!valueEncoding || typeof valueEncoding === 'string', 'The valueEncoding can only be string.');
-
     valueEncoding = this._codecs[valueEncoding] || valueEncoding;
 
     const descriptor = new FeedDescriptor({
