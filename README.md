@@ -5,7 +5,7 @@
 [![Build Status](https://travis-ci.com/dxos/feed-store.svg?branch=master)](https://travis-ci.com/dxos/feed-store)
 [![Coverage Status](https://coveralls.io/repos/github/dxos/feed-store/badge.svg?branch=master)](https://coveralls.io/github/dxos/feed-store?branch=master)
 ![npm (scoped)](https://img.shields.io/npm/v/@dxos/feed-store)
- [![Greenkeeper badge](https://badges.greenkeeper.io/dxos/feed-store.svg)](https://greenkeeper.io/)
+[![Greenkeeper badge](https://badges.greenkeeper.io/dxos/feed-store.svg)](https://greenkeeper.io/)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/standard/semistandard)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
@@ -34,18 +34,9 @@ import hypertrie from 'hypertrie';
 import { FeedStore, getDescriptor } from '@dxos/feed-store';
 
 (async () => {
-  const feedStore = await FeedStore.create(
-    // Database to index feeds.
-    hypertrie('./db'),
-
-    // RandomAccessStorage where the feeds are going to be stored.
-    './db',
-
-    // Options
-    {
-      feedOptions: { valueEncoding: 'utf-8' }
-    }
-  );
+  const feedStore = await FeedStore.create('./db', {
+    feedOptions: { valueEncoding: 'utf-8' }
+  });
 
   // Open a feed. If the feed doesn't exist, it would be created.
   const foo = await feedStore.openFeed('/foo');
@@ -68,7 +59,7 @@ import { FeedStore, getDescriptor } from '@dxos/feed-store';
 
 ## API
 
-#### `const feedStore = await feedStore.create(database, storage, [options])`
+#### `const feedStore = await feedStore.create(storage, [options])`
 
 Creates and initializes a new FeedStore.
 
@@ -80,7 +71,7 @@ Creates and initializes a new FeedStore.
   - `timeout: number`: Defines the time (ms) to wait for open or close a feed. Default: `10 * 1000`.
   - `hypercore: Hypercore`: Defines the Hypercore class to create feeds.
 
-#### `const feedStore = new FeedStore(database, storage, [options])`
+#### `const feedStore = new FeedStore(storage, [options])`
 
 Creates a new FeedStore `without wait for their initialization.`
 
