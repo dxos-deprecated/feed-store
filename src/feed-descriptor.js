@@ -9,7 +9,6 @@ import defaultHypercore from 'hypercore';
 import crypto from 'hypercore-crypto';
 import raf from 'random-access-file';
 import pify from 'pify';
-import bufferJson from 'buffer-json-encoding';
 import sodium from 'sodium-universal';
 import pTimeout from 'p-timeout';
 
@@ -47,6 +46,7 @@ class FeedDescriptor {
       'FeedDescriptor: secretKey must be a buffer of size a crypto_sign_SECRETKEYBYTES.');
     assert(!valueEncoding || typeof valueEncoding === 'string' || (typeof valueEncoding === 'object' && !!valueEncoding.name),
       'FeedDescriptor: valueEncoding must be a string or a codec object with a name prop that could be serializable.');
+    assert(typeof metadata === 'object', 'FeedDescriptor: metadata must be an object.');
 
     this._storage = storage;
     this._path = path;
@@ -55,12 +55,7 @@ class FeedDescriptor {
     this._valueEncoding = valueEncoding;
     this._timeout = timeout;
     this._hypercore = hypercore;
-
-    if (Buffer.isBuffer(metadata)) {
-      this._metadata = bufferJson.decode(metadata);
-    } else {
-      this._metadata = Object.assign({}, metadata);
-    }
+    this._metadata = Object.assign({}, metadata);
 
     if (!this._key) {
       const { publicKey, secretKey } = crypto.keyPair();
@@ -148,7 +143,7 @@ class FeedDescriptor {
       key: this._key,
       secretKey: this._secretKey,
       valueEncoding: typeof valueEncoding === 'object' ? valueEncoding.name : valueEncoding,
-      metadata: bufferJson.encode(this._metadata)
+      metadata: this._metadata
     };
   }
 
