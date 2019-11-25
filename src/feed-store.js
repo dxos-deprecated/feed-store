@@ -2,8 +2,6 @@
 // Copyright 2019 DxOS.
 //
 
-/** @typedef {(descriptor: FeedDescriptor) => boolean} DescriptorCallback */
-
 import { EventEmitter } from 'events';
 import assert from 'assert';
 import multi from 'multi-read-stream';
@@ -21,6 +19,13 @@ const codec = new Codec({ verify: true });
 codec.loadFromJSON(JSON.parse(schema));
 
 const STORE_NAMESPACE = 'feed';
+
+/**
+ *
+ * @callback DescriptorCallback
+ * @param {FeedDescriptor} descriptor
+ * @returns {boolean}
+ */
 
 /**
  * FeedStore
