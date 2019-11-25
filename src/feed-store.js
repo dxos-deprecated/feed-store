@@ -14,8 +14,6 @@ import codec from 'buffer-json-encoding';
 import { FeedDescriptor, getDescriptor } from './feed-descriptor';
 import IndexDB from './index-db';
 
-const debug = require('debug')('megafeed:feed-map');
-
 const STORE_NAMESPACE = '@feedstore';
 
 /**
@@ -67,6 +65,8 @@ class FeedStore extends EventEmitter {
    * @param {Hypercore} options.hypercore Hypercore class to use.
    */
   constructor (storage, options = {}) {
+    assert(storage, 'The storage is required.');
+
     super();
 
     const { database = hypertrie(storage), feedOptions = {}, codecs = {}, timeout, hypercore } = options;
@@ -84,7 +84,7 @@ class FeedStore extends EventEmitter {
 
     this._hypercore = hypercore;
 
-    this.setCodecs(codecs);
+    this._codecs = codecs;
 
     this._descriptors = new Map();
 
@@ -121,23 +121,6 @@ class FeedStore extends EventEmitter {
     return new Promise((resolve) => {
       this.once('ready', resolve);
     });
-  }
-
-  /*
-   * Set a list of available codecs to work with the feeds.
-   *
-   * @returns {FeedStore}
-   */
-  setCodecs (codecs) {
-    this._codecs = Object.assign({}, codecs);
-
-    Object.keys(this._codecs).forEach((prop) => {
-      if (!this._codecs[prop].name) {
-        this._codecs[prop].name = prop;
-      }
-    });
-
-    return this;
   }
 
   /**
@@ -319,7 +302,6 @@ class FeedStore extends EventEmitter {
       await release();
     } catch (err) {
       await release();
-      debug(err);
       throw err;
     }
   }
@@ -332,13 +314,8 @@ class FeedStore extends EventEmitter {
   async close () {
     await this.ready();
 
-    try {
-      await Promise.all(this.getOpenedDescriptors().map(fd => fd.close()));
-      await this._indexDB.close();
-    } catch (err) {
-      debug(err);
-      throw err;
-    }
+    await Promise.all(this.getOpenedDescriptors().map(fd => fd.close()));
+    await this._indexDB.close();
   }
 
   /**
@@ -395,13 +372,7 @@ class FeedStore extends EventEmitter {
   _createDescriptor (path, options) {
     const defaultOptions = this._defaultFeedOptions;
 
-    const { key, secretKey, metadata } = options;
-    let { valueEncoding = defaultOptions.valueEncoding } = options;
-
-    assert(!secretKey || (secretKey && key), 'You cannot have a secretKey without a publicKey.');
-    assert(!valueEncoding || typeof valueEncoding === 'string', 'The valueEncoding can only be string.');
-
-    valueEncoding = this._codecs[valueEncoding] || valueEncoding;
+    const { key, secretKey, valueEncoding = defaultOptions.valueEncoding, metadata } = options;
 
     const descriptor = new FeedDescriptor({
       storage: this._defaultStorage,
@@ -411,7 +382,8 @@ class FeedStore extends EventEmitter {
       valueEncoding,
       metadata,
       timeout: this._timeout,
-      hypercore: this._hypercore
+      hypercore: this._hypercore,
+      codecs: this._codecs
     });
 
     this._descriptors.set(
@@ -451,7 +423,6 @@ class FeedStore extends EventEmitter {
       return descriptor.feed;
     } catch (err) {
       if (release) await release();
-      debug(err);
       throw err;
     }
   }
@@ -465,10 +436,18 @@ class FeedStore extends EventEmitter {
    */
   async _persistFeed (descriptor) {
     const key = `${STORE_NAMESPACE}/${descriptor.key.toString('hex')}`;
-    const data = await this._indexDB.get(key);
-    const newData = descriptor.serialize();
 
-    if (!data || (JSON.stringify(data) !== JSON.stringify(newData))) {
+    const oldData = await this._indexDB.get(key);
+
+    const newData = {
+      path: descriptor.path,
+      key: descriptor.key,
+      secretKey: descriptor.secretKey,
+      valueEncoding: descriptor.valueEncoding,
+      metadata: descriptor.metadata
+    };
+
+    if (!oldData || (JSON.stringify(oldData) !== JSON.stringify(newData))) {
       await this._indexDB.put(key, newData);
     }
   }

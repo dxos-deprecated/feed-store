@@ -36,17 +36,20 @@ class FeedDescriptor {
    * @param {Hypercore} options.hypercore
    */
   constructor (options = {}) {
-    const { storage, path, key, secretKey, valueEncoding, metadata = {}, timeout = 10 * 1000, hypercore = defaultHypercore } = options;
+    const { storage, path, key, secretKey, valueEncoding, metadata = {}, timeout = 10 * 1000, hypercore = defaultHypercore, codecs = {} } = options;
 
     assert(!path || (typeof path === 'string' && path.length > 0),
-      'FeedDescriptor: path is required.');
+      'The path must be a string.');
     assert(!key || (Buffer.isBuffer(key) && key.length === sodium.crypto_sign_PUBLICKEYBYTES),
-      'FeedDescriptor: key must be a buffer of size crypto_sign_PUBLICKEYBYTES.');
+      'The key must be a buffer of size crypto_sign_PUBLICKEYBYTES.');
     assert(!secretKey || (Buffer.isBuffer(secretKey) && secretKey.length === sodium.crypto_sign_SECRETKEYBYTES),
-      'FeedDescriptor: secretKey must be a buffer of size a crypto_sign_SECRETKEYBYTES.');
-    assert(!valueEncoding || typeof valueEncoding === 'string' || (typeof valueEncoding === 'object' && !!valueEncoding.name),
-      'FeedDescriptor: valueEncoding must be a string or a codec object with a name prop that could be serializable.');
-    assert(typeof metadata === 'object', 'FeedDescriptor: metadata must be an object.');
+      'The secretKey must be a buffer of size a crypto_sign_SECRETKEYBYTES.');
+    assert(!secretKey || (secretKey && key),
+      'You cannot have a secretKey without a key.');
+    assert(!valueEncoding || typeof valueEncoding === 'string',
+      'The valueEncoding must be a string.');
+    assert(typeof metadata === 'object',
+      'The metadata must be an object.');
 
     this._storage = storage;
     this._path = path;
@@ -55,6 +58,7 @@ class FeedDescriptor {
     this._valueEncoding = valueEncoding;
     this._timeout = timeout;
     this._hypercore = hypercore;
+    this._codecs = codecs;
     this._metadata = Object.assign({}, metadata);
 
     if (!this._key) {
@@ -128,23 +132,6 @@ class FeedDescriptor {
    */
   get metadata () {
     return this._metadata;
-  }
-
-  /**
-   * Serialize the options need it for encoding.
-   *
-   * @returns {Object}
-   */
-  serialize () {
-    const valueEncoding = this._valueEncoding;
-
-    return {
-      path: this._path,
-      key: this._key,
-      secretKey: this._secretKey,
-      valueEncoding: typeof valueEncoding === 'object' ? valueEncoding.name : valueEncoding,
-      metadata: this._metadata
-    };
   }
 
   /*
@@ -227,7 +214,7 @@ class FeedDescriptor {
       this._key,
       {
         secretKey: this._secretKey,
-        valueEncoding: this._valueEncoding
+        valueEncoding: this._codecs[this._valueEncoding] || this._valueEncoding
       }
     );
 

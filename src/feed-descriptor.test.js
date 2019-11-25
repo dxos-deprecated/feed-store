@@ -73,32 +73,6 @@ describe('FeedDescriptor', () => {
     });
   });
 
-  test('Serialize metadata with buffers', async () => {
-    const metadata = {
-      subject: 'books',
-      aBuffer: Buffer.from('test')
-    };
-
-    const fd = new FeedDescriptor({
-      storage: ram,
-      path: '/books',
-      valueEncoding: 'json',
-      metadata
-    });
-
-    expect(fd.metadata).toEqual(metadata);
-
-    const data = fd.serialize();
-    expect(data.metadata).toBeInstanceOf(Buffer);
-
-    const fd2 = new FeedDescriptor(Object.assign({}, {
-      storage: ram
-    }, data));
-
-    expect(fd2.metadata).toEqual(metadata);
-    expect(fd2.metadata.aBuffer.toString()).toBe('test');
-  });
-
   test('on open error should unlock the resource', async () => {
     const fd = new FeedDescriptor({
       storage: ram,

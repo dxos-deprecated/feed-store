@@ -25,8 +25,16 @@ describe('FeedStore', () => {
 
   test('Config default', async () => {
     const feedStore = await FeedStore.create(ram);
-
     expect(feedStore).toBeInstanceOf(FeedStore);
+
+    const feedStore2 = new FeedStore(ram);
+    expect(feedStore).toBeInstanceOf(FeedStore);
+    feedStore2.initialize();
+    expect(feedStore2.ready()).resolves.toBeUndefined();
+  });
+
+  test('Should throw an assert error creating without storage.', async () => {
+    await expect(FeedStore.create()).rejects.toThrow(/storage is required/);
   });
 
   test('Config default and valueEncoding utf-8', async () => {
@@ -36,9 +44,11 @@ describe('FeedStore', () => {
   });
 
   test('Create feed', async () => {
-    booksFeed = await feedStore.openFeed('/books');
+    const metadata = { topic: 'books', blob: Buffer.from('...') };
+    booksFeed = await feedStore.openFeed('/books', { metadata });
     expect(booksFeed).toBeInstanceOf(hypercore);
     expect(FeedStore.getDescriptor(booksFeed)).toHaveProperty('path', '/books');
+    expect(FeedStore.getDescriptor(booksFeed).metadata).toEqual(metadata);
     await pify(booksFeed.append.bind(booksFeed))('Foundation and Empire');
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
     // It should return the same opened instance.
@@ -123,6 +133,10 @@ describe('FeedStore', () => {
 
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
     await expect(pify(usersFeed.head.bind(usersFeed))()).resolves.toBe('alice');
+
+    // The metadata of /books should be recreate too.
+    const metadata = { topic: 'books', blob: Buffer.from('...') };
+    expect(FeedStore.getDescriptor(booksFeed).metadata).toEqual(metadata);
   });
 
   test('Delete descriptor', async () => {
