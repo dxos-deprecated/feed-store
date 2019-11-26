@@ -116,7 +116,7 @@ Wait for feedStore to be ready.
 
 #### `FeedDescriptor`
 
-For each feed created, FeedStore maintain `FeedDescriptor` object.
+For each feed created, FeedStore maintain a `FeedDescriptor` object in memory.
 
 A `FeedDescriptor` provides the next information:
 
