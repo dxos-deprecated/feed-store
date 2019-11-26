@@ -85,7 +85,7 @@ Creates a new hypercore feed identified by a string path.
 
 - `path: string`: A require name to identify and index the feed to open.
 - `options: Object`: Feed options.
-  - `metadata: Object`: Serializable object with custom data about the feed.
+  - `metadata: *`: Serializable value with custom data about the feed.
   - `[...hypercoreOptions]`: Hypercore options.
 
 #### `feedStore.closeFeed(path) -> Promise`
@@ -114,11 +114,9 @@ const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag ==
 
 Wait for feedStore to be ready.
 
-#### `FeedStore.getDescriptor(feed) -> FeedDescriptor`
+#### `FeedDescriptor`
 
-Each feed created by FeedStore set a unique private Symbol inside with the descriptor information.
-
-Using the static method `getDescriptor` you can get that information.
+For each feed created, FeedStore maintain `FeedDescriptor` object.
 
 A `FeedDescriptor` provides the next information:
 
@@ -129,37 +127,23 @@ A `FeedDescriptor` provides the next information:
 - `feed: (Hypercore|null)`
 - `opened: Boolean`
 - `valueEncoding: string|Codec`
-- `metadata: Object`
+- `metadata: *`
 
 #### `feedStore.getDescriptors() -> FeedDescriptor[]`
 
 Returns a list of descriptors.
 
-#### `feedStore.getOpenedDescriptors() -> FeedDescriptor[]`
-
-Returns a list of descriptors with the feed opened.
-
-#### `feedStore.getDescriptorByKey(key) -> FeedDescriptor`
-
-Search a descriptor by their feed key.
-
-- `key: Buffer`
-
-#### `feedStore.getDescriptorByPath(path) -> FeedDescriptor`
-
-Search a descriptor by their path.
-
 #### `feedStore.getFeeds() -> Hypercore[]`
 
 Returns a list of opened hypercore feeds.
 
-#### `feedStore.findFeed((descriptor) => Boolean) -> Hypercore`
+#### `feedStore.findFeed(descriptor => Boolean) -> Hypercore`
 
 Find a opened feed using a callback function.
 
 - `descriptor: FeedDescriptor`
 
-#### `feedStore.filterFeeds((descriptor) => Boolean) -> Hypercore[]`
+#### `feedStore.filterFeeds(descriptor => Boolean) -> Hypercore[]`
 
 Filter the opened feeds using a callback function.
 

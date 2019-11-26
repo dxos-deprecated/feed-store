@@ -44,11 +44,12 @@ describe('FeedStore', () => {
   });
 
   test('Create feed', async () => {
-    const metadata = { topic: 'books', blob: Buffer.from('...') };
+    const metadata = { topic: 'books' };
     booksFeed = await feedStore.openFeed('/books', { metadata });
     expect(booksFeed).toBeInstanceOf(hypercore);
-    expect(FeedStore.getDescriptor(booksFeed)).toHaveProperty('path', '/books');
-    expect(FeedStore.getDescriptor(booksFeed).metadata).toEqual(metadata);
+    const booksFeedDescriptor = feedStore.getDescriptors().find(fd => fd.path === '/books');
+    expect(booksFeedDescriptor).toHaveProperty('path', '/books');
+    expect(booksFeedDescriptor.metadata).toEqual(metadata);
     await pify(booksFeed.append.bind(booksFeed))('Foundation and Empire');
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
     // It should return the same opened instance.
@@ -79,7 +80,7 @@ describe('FeedStore', () => {
       return hypercore(...args);
     });
 
-    const database = hypertrie(ram);
+    const database = hypertrie(ram, { valueEncoding: 'json' });
     database.list = jest.fn((_, cb) => cb(null, []));
 
     const feedStore = await FeedStore.create(ram, {
@@ -97,9 +98,6 @@ describe('FeedStore', () => {
 
   test('Descriptors', async () => {
     expect(feedStore.getDescriptors().map(fd => fd.path)).toEqual(['/books', '/users', '/groups']);
-    expect(feedStore.getOpenedDescriptors().map(fd => fd.path)).toEqual(['/books', '/users']);
-    expect(feedStore.getDescriptorByKey(booksFeed.key)).toHaveProperty('path', '/books');
-    expect(feedStore.getDescriptorByPath('/books')).toHaveProperty('key', booksFeed.key);
   });
 
   test('Feeds', async () => {
@@ -113,12 +111,12 @@ describe('FeedStore', () => {
     const [feed] = await feedStore.loadFeeds(fd => fd.path === '/groups');
     expect(feed).toBeDefined();
     expect(feed.key).toEqual(groupsFeed.key);
-    expect(feedStore.getDescriptorByPath('/groups')).toHaveProperty('opened', true);
+    expect(feedStore.getDescriptors().find(fd => fd.path === '/groups')).toHaveProperty('opened', true);
   });
 
   test('Close feedStore and their feeds', async () => {
     await feedStore.close();
-    expect(feedStore.getOpenedDescriptors().length).toBe(0);
+    expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(0);
   });
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
@@ -129,14 +127,14 @@ describe('FeedStore', () => {
 
     const booksFeed = await feedStore.openFeed('/books');
     const [usersFeed] = await feedStore.loadFeeds(fd => fd.path === '/users');
-    expect(feedStore.getOpenedDescriptors().length).toBe(2);
+    expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(2);
 
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
     await expect(pify(usersFeed.head.bind(usersFeed))()).resolves.toBe('alice');
 
     // The metadata of /books should be recreate too.
-    const metadata = { topic: 'books', blob: Buffer.from('...') };
-    expect(FeedStore.getDescriptor(booksFeed).metadata).toEqual(metadata);
+    const metadata = { topic: 'books' };
+    expect(feedStore.getDescriptors().find(fd => fd.path === '/books').metadata).toEqual(metadata);
   });
 
   test('Delete descriptor', async () => {
@@ -205,7 +203,7 @@ describe('FeedStore', () => {
 
     await expect(feedStore.openFeed('/foo')).rejects.toThrow(/open error/);
 
-    const fd = feedStore.getDescriptorByPath('/foo');
+    const fd = feedStore.getDescriptors().find(fd => fd.path === '/foo');
     const release = await fd.lock();
     expect(release).toBeDefined();
     await release();
@@ -223,8 +221,8 @@ describe('FeedStore', () => {
       })
     });
 
-    const feed = await feedStore.openFeed('/foo');
-    const fd = FeedStore.getDescriptor(feed);
+    await feedStore.openFeed('/foo');
+    const fd = feedStore.getDescriptors().find(fd => fd.path === '/foo');
 
     await expect(feedStore.closeFeed('/foo')).rejects.toThrow(/close error/);
     await expect(feedStore.close()).rejects.toThrow(/close error/);
@@ -237,8 +235,8 @@ describe('FeedStore', () => {
   test('on delete descriptor error should unlock the descriptor', async () => {
     const feedStore = await FeedStore.create(ram);
 
-    const feed = await feedStore.openFeed('/foo');
-    const fd = FeedStore.getDescriptor(feed);
+    await feedStore.openFeed('/foo');
+    const fd = feedStore.getDescriptors().find(fd => fd.path === '/foo');
 
     // We remove the indexDB to force an error.
     feedStore._indexDB = null;
@@ -296,8 +294,8 @@ describe('FeedStore', () => {
       pify(bar.append.bind(bar))('bar1')
     ]);
 
-    const stream = feedStore.createReadStreamByFilter(descriptor => descriptor.metadata.topic === 'topic1');
-    const liveStream = feedStore.createReadStreamByFilter(descriptor => descriptor.metadata.topic === 'topic1', { live: true });
+    const stream = feedStore.createReadStreamByFilter(({ metadata }) => metadata && metadata.topic === 'topic1');
+    const liveStream = feedStore.createReadStreamByFilter(({ metadata }) => metadata && metadata.topic === 'topic1', { live: true });
 
     const messages = [];
     stream.on('data', (chunk) => {

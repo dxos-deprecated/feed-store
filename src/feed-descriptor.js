@@ -14,8 +14,6 @@ import pTimeout from 'p-timeout';
 
 import Locker from './locker';
 
-const kDescriptor = Symbol('descriptor');
-
 /**
  * FeedDescriptor
  *
@@ -25,21 +23,21 @@ class FeedDescriptor {
   /**
    * constructor
    *
+   * @param {string} path
    * @param {Object} options
    * @param {RandomAccessStorage} options.storage
-   * @param {string} options.path
    * @param {Buffer} options.key
    * @param {Buffer} options.secretKey
    * @param {Object|string} options.valueEncoding
    * @param {number} [options.timeout=10000]
-   * @param {Object|Buffer} options.metadata
+   * @param {*} options.metadata
    * @param {Hypercore} options.hypercore
    */
-  constructor (options = {}) {
-    const { storage, path, key, secretKey, valueEncoding, metadata = {}, timeout = 10 * 1000, hypercore = defaultHypercore, codecs = {} } = options;
+  constructor (path, options = {}) {
+    const { storage, key, secretKey, valueEncoding, timeout = 10 * 1000, hypercore = defaultHypercore, codecs = {}, metadata } = options;
 
-    assert(!path || (typeof path === 'string' && path.length > 0),
-      'The path must be a string.');
+    assert(path && typeof path === 'string' && path.length > 0,
+      'The path is required and must be a valid string.');
     assert(!key || (Buffer.isBuffer(key) && key.length === sodium.crypto_sign_PUBLICKEYBYTES),
       'The key must be a buffer of size crypto_sign_PUBLICKEYBYTES.');
     assert(!secretKey || (Buffer.isBuffer(secretKey) && secretKey.length === sodium.crypto_sign_SECRETKEYBYTES),
@@ -48,8 +46,6 @@ class FeedDescriptor {
       'You cannot have a secretKey without a key.');
     assert(!valueEncoding || typeof valueEncoding === 'string',
       'The valueEncoding must be a string.');
-    assert(typeof metadata === 'object',
-      'The metadata must be an object.');
 
     this._storage = storage;
     this._path = path;
@@ -59,7 +55,7 @@ class FeedDescriptor {
     this._timeout = timeout;
     this._hypercore = hypercore;
     this._codecs = codecs;
-    this._metadata = Object.assign({}, metadata);
+    this._metadata = metadata;
 
     if (!this._key) {
       const { publicKey, secretKey } = crypto.keyPair();
@@ -68,10 +64,6 @@ class FeedDescriptor {
     }
 
     this._discoveryKey = crypto.discoveryKey(this._key);
-
-    if (!this._path) {
-      this._path = this._key.toString('hex');
-    }
 
     this._locker = new Locker();
 
@@ -128,7 +120,7 @@ class FeedDescriptor {
   }
 
   /**
-   * @type {Object}
+   * @type {*}
    */
   get metadata () {
     return this._metadata;
@@ -218,14 +210,8 @@ class FeedDescriptor {
       }
     );
 
-    this._feed[kDescriptor] = this;
-
     await pify(this._feed.ready.bind(this._feed))();
   }
 }
 
-function getDescriptor (feed) {
-  return feed[kDescriptor];
-}
-
-export { FeedDescriptor, getDescriptor };
+export default FeedDescriptor;
