@@ -5,39 +5,39 @@
 import ram from 'random-access-memory';
 import crypto from 'hypercore-crypto';
 
-import { FeedDescriptor } from './feed-descriptor';
+import FeedDescriptor from './feed-descriptor';
 
 describe('FeedDescriptor', () => {
   let fd = null;
 
-  test('Create with empty', () => {
-    const fd = new FeedDescriptor();
+  test('Create', () => {
+    const fd = new FeedDescriptor('/foo');
 
     expect(fd).toBeInstanceOf(FeedDescriptor);
-    expect(fd.path).toBe(fd.key.toString('hex'));
+    expect(fd.path).toBe('/foo');
+    expect(fd.key).toBeDefined();
     expect(fd.secretKey).toBeDefined();
   });
 
-  test('Create custom keys', () => {
-    const { publicKey, secretKey } = crypto.keyPair();
-    const fd = new FeedDescriptor({
-      path: '/test',
-      key: publicKey,
-      secretKey
-    });
-
-    expect(fd.key).toBe(publicKey);
-    expect(fd.secretKey).toBe(secretKey);
+  test('Validate asserts', () => {
+    expect(() => new FeedDescriptor()).toThrow(/path is required/);
+    expect(() => new FeedDescriptor('/foo', { key: 'foo' })).toThrow(/key must be a buffer/);
+    expect(() => new FeedDescriptor('/foo', { key: crypto.keyPair().publicKey, secretKey: 'foo' })).toThrow(/secretKey must be a buffer/);
+    expect(() => new FeedDescriptor('/foo', { secretKey: crypto.keyPair().secretKey })).toThrow(/cannot have a secretKey without a key/);
+    expect(() => new FeedDescriptor('/foo', { valueEncoding: {} })).toThrow(/valueEncoding must be a string/);
   });
 
   test('Create custom options', () => {
+    const { publicKey, secretKey } = crypto.keyPair();
+
     const metadata = {
       subject: 'books'
     };
 
-    fd = new FeedDescriptor({
+    fd = new FeedDescriptor('/books', {
       storage: ram,
-      path: '/books',
+      key: publicKey,
+      secretKey,
       valueEncoding: 'json',
       metadata
     });
@@ -73,36 +73,9 @@ describe('FeedDescriptor', () => {
     });
   });
 
-  test('Serialize metadata with buffers', async () => {
-    const metadata = {
-      subject: 'books',
-      aBuffer: Buffer.from('test')
-    };
-
-    const fd = new FeedDescriptor({
-      storage: ram,
-      path: '/books',
-      valueEncoding: 'json',
-      metadata
-    });
-
-    expect(fd.metadata).toEqual(metadata);
-
-    const data = fd.serialize();
-    expect(data.metadata).toBeInstanceOf(Buffer);
-
-    const fd2 = new FeedDescriptor(Object.assign({}, {
-      storage: ram
-    }, data));
-
-    expect(fd2.metadata).toEqual(metadata);
-    expect(fd2.metadata.aBuffer.toString()).toBe('test');
-  });
-
   test('on open error should unlock the resource', async () => {
-    const fd = new FeedDescriptor({
+    const fd = new FeedDescriptor('/foo', {
       storage: ram,
-      path: '/foo',
       hypercore: () => {
         throw new Error('open error');
       }
@@ -116,9 +89,8 @@ describe('FeedDescriptor', () => {
   });
 
   test('on close error should unlock the resource', async () => {
-    const fd = new FeedDescriptor({
+    const fd = new FeedDescriptor('/foo', {
       storage: ram,
-      path: '/foo',
       hypercore: () => ({
         opened: true,
         ready (cb) { cb(); },

@@ -9,13 +9,10 @@ import defaultHypercore from 'hypercore';
 import crypto from 'hypercore-crypto';
 import raf from 'random-access-file';
 import pify from 'pify';
-import bufferJson from 'buffer-json-encoding';
 import sodium from 'sodium-universal';
 import pTimeout from 'p-timeout';
 
 import Locker from './locker';
-
-const kDescriptor = Symbol('descriptor');
 
 /**
  * FeedDescriptor
@@ -26,27 +23,29 @@ class FeedDescriptor {
   /**
    * constructor
    *
+   * @param {string} path
    * @param {Object} options
    * @param {RandomAccessStorage} options.storage
-   * @param {string} options.path
    * @param {Buffer} options.key
    * @param {Buffer} options.secretKey
    * @param {Object|string} options.valueEncoding
    * @param {number} [options.timeout=10000]
-   * @param {Object|Buffer} options.metadata
+   * @param {*} options.metadata
    * @param {Hypercore} options.hypercore
    */
-  constructor (options = {}) {
-    const { storage, path, key, secretKey, valueEncoding, metadata = {}, timeout = 10 * 1000, hypercore = defaultHypercore } = options;
+  constructor (path, options = {}) {
+    const { storage, key, secretKey, valueEncoding, timeout = 10 * 1000, hypercore = defaultHypercore, codecs = {}, metadata } = options;
 
-    assert(!path || (typeof path === 'string' && path.length > 0),
-      'FeedDescriptor: path is required.');
+    assert(path && typeof path === 'string' && path.length > 0,
+      'The path is required and must be a valid string.');
     assert(!key || (Buffer.isBuffer(key) && key.length === sodium.crypto_sign_PUBLICKEYBYTES),
-      'FeedDescriptor: key must be a buffer of size crypto_sign_PUBLICKEYBYTES.');
+      'The key must be a buffer of size crypto_sign_PUBLICKEYBYTES.');
     assert(!secretKey || (Buffer.isBuffer(secretKey) && secretKey.length === sodium.crypto_sign_SECRETKEYBYTES),
-      'FeedDescriptor: secretKey must be a buffer of size a crypto_sign_SECRETKEYBYTES.');
-    assert(!valueEncoding || typeof valueEncoding === 'string' || (typeof valueEncoding === 'object' && !!valueEncoding.name),
-      'FeedDescriptor: valueEncoding must be a string or a codec object with a name prop that could be serializable.');
+      'The secretKey must be a buffer of size a crypto_sign_SECRETKEYBYTES.');
+    assert(!secretKey || (secretKey && key),
+      'You cannot have a secretKey without a key.');
+    assert(!valueEncoding || typeof valueEncoding === 'string',
+      'The valueEncoding must be a string.');
 
     this._storage = storage;
     this._path = path;
@@ -55,12 +54,8 @@ class FeedDescriptor {
     this._valueEncoding = valueEncoding;
     this._timeout = timeout;
     this._hypercore = hypercore;
-
-    if (Buffer.isBuffer(metadata)) {
-      this._metadata = bufferJson.decode(metadata);
-    } else {
-      this._metadata = Object.assign({}, metadata);
-    }
+    this._codecs = codecs;
+    this._metadata = metadata;
 
     if (!this._key) {
       const { publicKey, secretKey } = crypto.keyPair();
@@ -69,10 +64,6 @@ class FeedDescriptor {
     }
 
     this._discoveryKey = crypto.discoveryKey(this._key);
-
-    if (!this._path) {
-      this._path = this._key.toString('hex');
-    }
 
     this._locker = new Locker();
 
@@ -129,27 +120,10 @@ class FeedDescriptor {
   }
 
   /**
-   * @type {Object}
+   * @type {*}
    */
   get metadata () {
     return this._metadata;
-  }
-
-  /**
-   * Serialize the options need it for encoding.
-   *
-   * @returns {Object}
-   */
-  serialize () {
-    const valueEncoding = this._valueEncoding;
-
-    return {
-      path: this._path,
-      key: this._key,
-      secretKey: this._secretKey,
-      valueEncoding: typeof valueEncoding === 'object' ? valueEncoding.name : valueEncoding,
-      metadata: bufferJson.encode(this._metadata)
-    };
   }
 
   /*
@@ -232,18 +206,12 @@ class FeedDescriptor {
       this._key,
       {
         secretKey: this._secretKey,
-        valueEncoding: this._valueEncoding
+        valueEncoding: this._codecs[this._valueEncoding] || this._valueEncoding
       }
     );
-
-    this._feed[kDescriptor] = this;
 
     await pify(this._feed.ready.bind(this._feed))();
   }
 }
 
-function getDescriptor (feed) {
-  return feed[kDescriptor];
-}
-
-export { FeedDescriptor, getDescriptor };
+export default FeedDescriptor;

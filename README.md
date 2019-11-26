@@ -5,7 +5,7 @@
 [![Build Status](https://travis-ci.com/dxos/feed-store.svg?branch=master)](https://travis-ci.com/dxos/feed-store)
 [![Coverage Status](https://coveralls.io/repos/github/dxos/feed-store/badge.svg?branch=master)](https://coveralls.io/github/dxos/feed-store?branch=master)
 ![npm (scoped)](https://img.shields.io/npm/v/@dxos/feed-store)
- [![Greenkeeper badge](https://badges.greenkeeper.io/dxos/feed-store.svg)](https://greenkeeper.io/)
+[![Greenkeeper badge](https://badges.greenkeeper.io/dxos/feed-store.svg)](https://greenkeeper.io/)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/standard/semistandard)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
@@ -34,18 +34,9 @@ import hypertrie from 'hypertrie';
 import { FeedStore, getDescriptor } from '@dxos/feed-store';
 
 (async () => {
-  const feedStore = await FeedStore.create(
-    // Database to index feeds.
-    hypertrie('./db'),
-
-    // RandomAccessStorage where the feeds are going to be stored.
-    './db',
-
-    // Options
-    {
-      feedOptions: { valueEncoding: 'utf-8' }
-    }
-  );
+  const feedStore = await FeedStore.create('./db', {
+    feedOptions: { valueEncoding: 'utf-8' }
+  });
 
   // Open a feed. If the feed doesn't exist, it would be created.
   const foo = await feedStore.openFeed('/foo');
@@ -68,19 +59,19 @@ import { FeedStore, getDescriptor } from '@dxos/feed-store';
 
 ## API
 
-#### `const feedStore = await feedStore.create(database, storage, [options])`
+#### `const feedStore = await feedStore.create(storage, [options])`
 
 Creates and initializes a new FeedStore.
 
-- `database: Hypertrie`: Database for the metadata feeds.
 - `storage: RandomAccessStorage`: Storage used by the feeds to store their data.
 - `options`:
+  - `database: Hypertrie`: Defines a custom hypertrie database to index the feeds.
   - `feedOptions: Object`: Default hypercore options for each feed.
-  - `codecs: Object`: Define a list of available codecs to work with the feeds.
-  - `timeout: number`: Define the time (ms) to wait for open or close a feed. Default: `10 * 1000`.
-  - `hypercore: Hypercore`: Define the Hypercore class to use.
+  - `codecs: Object`: Defines a list of available codecs to work with the feeds.
+  - `timeout: number`: Defines the time (ms) to wait for open or close a feed. Default: `10 * 1000`.
+  - `hypercore: Hypercore`: Defines the Hypercore class to create feeds.
 
-#### `const feedStore = new FeedStore(database, storage, [options])`
+#### `const feedStore = new FeedStore(storage, [options])`
 
 Creates a new FeedStore `without wait for their initialization.`
 
@@ -94,7 +85,7 @@ Creates a new hypercore feed identified by a string path.
 
 - `path: string`: A require name to identify and index the feed to open.
 - `options: Object`: Feed options.
-  - `metadata: Object`: Serializable object with custom data about the feed.
+  - `metadata: *`: Serializable value with custom data about the feed.
   - `[...hypercoreOptions]`: Hypercore options.
 
 #### `feedStore.closeFeed(path) -> Promise`
@@ -123,11 +114,9 @@ const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag ==
 
 Wait for feedStore to be ready.
 
-#### `FeedStore.getDescriptor(feed) -> FeedDescriptor`
+#### `FeedDescriptor`
 
-Each feed created by FeedStore set a unique private Symbol inside with the descriptor information.
-
-Using the static method `getDescriptor` you can get that information.
+For each feed created, FeedStore maintain `FeedDescriptor` object.
 
 A `FeedDescriptor` provides the next information:
 
@@ -138,37 +127,23 @@ A `FeedDescriptor` provides the next information:
 - `feed: (Hypercore|null)`
 - `opened: Boolean`
 - `valueEncoding: string|Codec`
-- `metadata: Object`
+- `metadata: *`
 
 #### `feedStore.getDescriptors() -> FeedDescriptor[]`
 
 Returns a list of descriptors.
 
-#### `feedStore.getOpenedDescriptors() -> FeedDescriptor[]`
-
-Returns a list of descriptors with the feed opened.
-
-#### `feedStore.getDescriptorByKey(key) -> FeedDescriptor`
-
-Search a descriptor by their feed key.
-
-- `key: Buffer`
-
-#### `feedStore.getDescriptorByPath(path) -> FeedDescriptor`
-
-Search a descriptor by their path.
-
 #### `feedStore.getFeeds() -> Hypercore[]`
 
 Returns a list of opened hypercore feeds.
 
-#### `feedStore.findFeed((descriptor) => Boolean) -> Hypercore`
+#### `feedStore.findFeed(descriptor => Boolean) -> Hypercore`
 
 Find a opened feed using a callback function.
 
 - `descriptor: FeedDescriptor`
 
-#### `feedStore.filterFeeds((descriptor) => Boolean) -> Hypercore[]`
+#### `feedStore.filterFeeds(descriptor => Boolean) -> Hypercore[]`
 
 Filter the opened feeds using a callback function.
 
@@ -178,13 +153,13 @@ Filter the opened feeds using a callback function.
 
 Creates a ReadableStream from the loaded feeds.
 
-- `options: Options for the hypercore.createReadStream`
+- `options: Object`: Options for the hypercore.createReadStream.
 
 #### `feedStore.createReadStreamByFilter(descriptor => Boolean, [options]) -> ReadableStream`
 
 Creates a ReadableStream from the loaded feeds filter by a callback function.
 
-- `options: Options for the hypercore.createReadStream`
+- `options: Object`: Options for the hypercore.createReadStream.
 
 ### Events
 
