@@ -294,8 +294,8 @@ describe('FeedStore', () => {
       pify(bar.append.bind(bar))('bar1')
     ]);
 
-    const stream = feedStore.createReadStreamByFilter(({ metadata }) => metadata && metadata.topic === 'topic1');
-    const liveStream = feedStore.createReadStreamByFilter(({ metadata }) => metadata && metadata.topic === 'topic1', { live: true });
+    const stream = feedStore.createReadStreamByFilter(({ metadata = {} }) => metadata.topic === 'topic1');
+    const liveStream = feedStore.createReadStreamByFilter(({ metadata = {} }) => metadata.topic === 'topic1', { live: true });
 
     const messages = [];
     stream.on('data', (chunk) => {
