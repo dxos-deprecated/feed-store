@@ -2,6 +2,8 @@
 // Copyright 2019 DxOS.
 //
 
+import assert from 'assert';
+
 import pify from 'pify';
 
 /**
@@ -10,18 +12,25 @@ import pify from 'pify';
 class IndexDB {
   /**
    * @constructor
-   * @param {Hypertrie} db
+   * @param {Hypertrie} hypertrie
    */
-  constructor (db) {
-    console.assert(db);
+  constructor (hypertrie) {
+    assert(hypertrie);
+
+    this._hypertrie = hypertrie;
 
     this._db = {
-      put: pify(db.put.bind(db)),
-      get: pify(db.get.bind(db)),
-      delete: pify(db.del.bind(db)),
-      list: pify(db.list.bind(db)),
-      close: pify(db.feed.close.bind(db.feed))
+      put: pify(hypertrie.put.bind(hypertrie)),
+      get: pify(hypertrie.get.bind(hypertrie)),
+      delete: pify(hypertrie.del.bind(hypertrie)),
+      list: pify(hypertrie.list.bind(hypertrie)),
+      close: pify(hypertrie.feed.close.bind(hypertrie.feed))
     };
+  }
+
+  get opened () {
+    const { feed } = this._hypertrie;
+    return this._hypertrie.opened && !!(feed.opened && !feed.closed);
   }
 
   async list (path) {

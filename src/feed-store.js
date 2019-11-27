@@ -21,6 +21,13 @@ const STORE_NAMESPACE = '@feedstore';
  */
 
 /**
+ *
+ * @callback StreamCallback
+ * @param {FeedDescriptor} descriptor
+ * @returns {(ReadableStream|boolean)}
+ */
+
+/**
  * FeedStore
  *
  * Management of multiple feeds to create, update, load, find and delete feeds
@@ -80,7 +87,15 @@ class FeedStore extends EventEmitter {
 
     this._descriptors = new Map();
 
+    this._initializing = false;
     this._ready = false;
+  }
+
+  /**
+   * @type {Boolean}
+   */
+  get opened () {
+    return this._ready && this._indexDB.opened;
   }
 
   /**
@@ -89,6 +104,12 @@ class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async initialize () {
+    if (this._ready || this._initializing) {
+      return this.ready();
+    }
+
+    this._initializing = true;
+
     const list = await this._indexDB.list(STORE_NAMESPACE);
 
     await Promise.all(
@@ -104,6 +125,7 @@ class FeedStore extends EventEmitter {
     );
 
     process.nextTick(() => {
+      this._initializing = false;
       this._ready = true;
       this.emit('ready');
     });
@@ -177,7 +199,7 @@ class FeedStore extends EventEmitter {
    * @returns {Promise<Hypercore[]>}
    */
   async loadFeeds (callback) {
-    await this.ready();
+    await this.initialize();
 
     const descriptors = this.getDescriptors()
       .filter(descriptor => callback(descriptor));
@@ -204,7 +226,7 @@ class FeedStore extends EventEmitter {
   async openFeed (path, options = {}) {
     assert(path, 'The path is required.');
 
-    await this.ready();
+    await this.initialize();
 
     const { key } = options;
 
@@ -234,7 +256,7 @@ class FeedStore extends EventEmitter {
   async closeFeed (path) {
     assert(path, 'The path is required.');
 
-    await this.ready();
+    await this.initialize();
 
     const descriptor = this.getDescriptors().find(fd => fd.path === path);
 
@@ -248,7 +270,7 @@ class FeedStore extends EventEmitter {
   /**
    * Remove a descriptor from the indexDB by the path.
    *
-   * IMPORTANT: This operation would not close the feed.
+   * NOTE: This operation would not close the feed.
    *
    * @param {string} path
    * @returns {Promise}
@@ -256,7 +278,7 @@ class FeedStore extends EventEmitter {
   async deleteDescriptor (path) {
     assert(path, 'The path is required.');
 
-    await this.ready();
+    await this.initialize();
 
     const descriptor = this.getDescriptors().find(fd => fd.path === path);
 
@@ -282,7 +304,7 @@ class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async close () {
-    await this.ready();
+    await this.initialize();
 
     await Promise.all(this
       .getDescriptors()
@@ -295,33 +317,37 @@ class FeedStore extends EventEmitter {
   /**
    * Creates a ReadableStream from the loaded feeds.
    *
-   * @param {Object} [options] Options for the hypercore.createReadStream.
-   * @returns {ReadableStream}
-   */
-  createReadStream (options) {
-    return this.createReadStreamByFilter(() => true, options);
-  }
-
-  /**
-   * Creates a ReadableStream from the loaded feeds filter by a callback function.
+   * It uses a callback function to return the stream for each feed.
    *
-   * @param {DescriptorCallback} callback Filter function to select from which feeds to read.
-   * @param {Object} [options] Options for the hypercore.createReadStream.
+   * NOTE: If the callback returns `false` it will ignore the feed.
+   *
+   * @param {StreamCallback} [callback] Function to call the feed.createReadStream() for each feed.
    * @returns {ReadableStream}
    */
-  createReadStreamByFilter (callback, options) {
+  createReadStream (callback = ({ feed }) => feed.createReadStream()) {
     const streams = new Map();
 
-    this.filterFeeds(callback).forEach(feed => {
-      streams.set(feed.key.toString('hex'), feed.createReadStream(options));
-    });
+    this
+      .getDescriptors()
+      .filter(descriptor => descriptor.opened)
+      .forEach(descriptor => {
+        const stream = callback(descriptor);
+        if (stream) {
+          streams.set(descriptor.key.toString('hex'), stream);
+        }
+      });
 
     const multiReader = multi.obj(Array.from(streams.values()));
 
     const onFeed = (feed, descriptor) => {
-      if (!streams.has(feed.key.toString('hex')) && callback(descriptor)) {
-        streams.set(feed.key.toString('hex'), feed.createReadStream(options));
-        multiReader.add(feed.createReadStream(options));
+      if (streams.has(feed.key.toString('hex'))) {
+        return;
+      }
+
+      const stream = callback(descriptor);
+      if (stream) {
+        streams.set(descriptor.key.toString('hex'), stream);
+        multiReader.add(stream);
       }
     };
 

@@ -31,7 +31,7 @@ $ npm install @dxos/feed-store
 
 ```javascript
 import hypertrie from 'hypertrie';
-import { FeedStore, getDescriptor } from '@dxos/feed-store';
+import FeedStore from '@dxos/feed-store';
 
 (async () => {
   const feedStore = await FeedStore.create('./db', {
@@ -50,10 +50,8 @@ import { FeedStore, getDescriptor } from '@dxos/feed-store';
     key: Buffer.from('...'),
     secretKey: Buffer.from('...'),
     valueEncoding: 'json',
-    metadata: { tag: 'important' } // Save serializable feed metadata.
+    metadata: { tag: 'bar' } // Save serializable feed metadata.
   });
-
-  console.log(getDescriptor(bar).metadata); // { tag: 'important' }
 })();
 ```
 
@@ -107,7 +105,7 @@ Close the hypertrie database and their feeds.
 Loads feeds using a function to filter what feeds you want to load from the database.
 
 ```javascript
-const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag === 'important')
+const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag === 'foo')
 ```
 
 #### `feedStore.ready() -> Promise`
@@ -149,17 +147,25 @@ Filter the opened feeds using a callback function.
 
 - `descriptor: FeedDescriptor`
 
-#### `feedStore.createReadStream([options]) -> ReadableStream`
+#### `feedStore.createReadStream(descriptor => (ReadableStream|Boolean)) -> ReadableStream`
 
 Creates a ReadableStream from the loaded feeds.
 
-- `options: Object`: Options for the hypercore.createReadStream.
+It uses an optional callback function to return the stream for each feed.
 
-#### `feedStore.createReadStreamByFilter(descriptor => Boolean, [options]) -> ReadableStream`
+NOTE: If the callback returns `false` it will ignore the feed.
 
-Creates a ReadableStream from the loaded feeds filter by a callback function.
+- `descriptor: FeedDescriptor`
 
-- `options: Object`: Options for the hypercore.createReadStream.
+Usage:
+
+```javascript
+const stream = feedStore.createReadStream(descriptor => {
+  if (descriptor.metadata.tag === 'foo') {
+    return descriptor.feed.createReadStream()
+  }
+})
+```
 
 ### Events
 
