@@ -124,11 +124,9 @@ class FeedStore extends EventEmitter {
       })
     );
 
-    process.nextTick(() => {
-      this._initializing = false;
-      this._ready = true;
-      this.emit('ready');
-    });
+    this._initializing = false;
+    this._ready = true;
+    this.emit('ready');
   }
 
   async ready () {
@@ -325,7 +323,7 @@ class FeedStore extends EventEmitter {
    * @returns {ReadableStream}
    */
   createReadStream (callback = ({ feed }) => feed.createReadStream()) {
-    const streams = new Map();
+    const multiReader = multi.obj();
 
     this
       .getDescriptors()
@@ -333,20 +331,13 @@ class FeedStore extends EventEmitter {
       .forEach(descriptor => {
         const stream = callback(descriptor);
         if (stream) {
-          streams.set(descriptor.key.toString('hex'), stream);
+          multiReader.add(stream);
         }
       });
 
-    const multiReader = multi.obj(Array.from(streams.values()));
-
-    const onFeed = (feed, descriptor) => {
-      if (streams.has(feed.key.toString('hex'))) {
-        return;
-      }
-
+    const onFeed = (_, descriptor) => {
       const stream = callback(descriptor);
       if (stream) {
-        streams.set(descriptor.key.toString('hex'), stream);
         multiReader.add(stream);
       }
     };

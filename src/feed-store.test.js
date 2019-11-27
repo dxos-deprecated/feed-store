@@ -26,11 +26,13 @@ describe('FeedStore', () => {
   test('Config default', async () => {
     const feedStore = await FeedStore.create(ram);
     expect(feedStore).toBeInstanceOf(FeedStore);
+    expect(feedStore.opened).toBeTruthy();
 
     const feedStore2 = new FeedStore(ram);
     expect(feedStore).toBeInstanceOf(FeedStore);
     feedStore2.initialize();
-    expect(feedStore2.ready()).resolves.toBeUndefined();
+    await expect(feedStore2.ready()).resolves.toBeUndefined();
+    expect(feedStore.opened).toBeTruthy();
   });
 
   test('Should throw an assert error creating without storage.', async () => {
@@ -53,7 +55,7 @@ describe('FeedStore', () => {
     await pify(booksFeed.append.bind(booksFeed))('Foundation and Empire');
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
     // It should return the same opened instance.
-    expect(feedStore.openFeed('/books')).resolves.toBe(booksFeed);
+    await expect(feedStore.openFeed('/books')).resolves.toBe(booksFeed);
     // You can't open a feed with a different key.
     await expect(feedStore.openFeed('/books', { key: Buffer.from('...') })).rejects.toThrow(/different public key/);
     await expect(feedStore.openFeed('/foo', { key: booksFeed.key })).rejects.toThrow(/already a feed registered with the public key/);
@@ -72,7 +74,7 @@ describe('FeedStore', () => {
   test('Create and close a feed', async () => {
     await expect(feedStore.closeFeed('/fooo')).rejects.toThrow(/Feed not found/);
     await feedStore.closeFeed('/groups');
-    expect(groupsFeed.closed).toBe(true);
+    expect(groupsFeed.closed).toBeTruthy();
   });
 
   test('Config default + custom database + custom hypercore', async () => {
@@ -117,6 +119,7 @@ describe('FeedStore', () => {
   test('Close feedStore and their feeds', async () => {
     await feedStore.close();
     expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(0);
+    expect(feedStore.opened).toBe(false);
   });
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
