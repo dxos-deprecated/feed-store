@@ -35,7 +35,7 @@ const STORE_NAMESPACE = '@feedstore';
  *
  * @extends {EventEmitter}
  */
-class FeedStore extends EventEmitter {
+export class FeedStore extends EventEmitter {
   /**
    * Create and initialize a new FeedStore
    *
@@ -458,5 +458,3 @@ class FeedStore extends EventEmitter {
     this.emit('feed', feed, descriptor);
   }
 }
-
-export default FeedStore;

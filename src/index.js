@@ -1,3 +1,5 @@
-import FeedStore from './feed-store';
+//
+// Copyright 2019 DxOS.
+//
 
-export default FeedStore;
+export * from './feed-store';

@@ -30,8 +30,7 @@ $ npm install @dxos/feed-store
 ## Usage
 
 ```javascript
-import hypertrie from 'hypertrie';
-import FeedStore from '@dxos/feed-store';
+import { FeedStore } from '@dxos/feed-store';
 
 (async () => {
   const feedStore = await FeedStore.create('./db', {
