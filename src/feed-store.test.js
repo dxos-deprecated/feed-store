@@ -10,7 +10,7 @@ import pify from 'pify';
 import wait from 'wait-for-expect';
 import eos from 'end-of-stream-promise';
 
-import FeedStore from './feed-store';
+import { FeedStore } from './feed-store';
 
 describe('FeedStore', () => {
   let booksFeed;
