@@ -71,19 +71,25 @@ export class FeedStore extends EventEmitter {
 
     super();
 
-    const { database = hypertrie(storage, { valueEncoding: 'json' }), feedOptions = {}, codecs = {}, timeout, hypercore } = options;
+    this._defaultStorage = storage;
+
+    const {
+      database = hypertrie(storage, { valueEncoding: 'json' }),
+      feedOptions = {},
+      codecs = {},
+      timeout,
+      hypercore
+    } = options;
 
     this._indexDB = new IndexDB(database);
 
-    this._defaultStorage = storage;
-
     this._defaultFeedOptions = feedOptions;
+
+    this._codecs = codecs;
 
     this._timeout = timeout;
 
     this._hypercore = hypercore;
-
-    this._codecs = codecs;
 
     this._descriptors = new Map();
 
@@ -149,14 +155,14 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
-   * Get the list of opened feeds.
+   * Get the list of opened feeds, with optional filter.
    *
+   * @param {DescriptorCallback} [callback]
    * @returns {Hypercore[]}
    */
-  getFeeds () {
-    return this
-      .getDescriptors()
-      .filter(descriptor => descriptor.opened)
+  getOpenFeeds (callback) {
+    return this.getDescriptors()
+      .filter(descriptor => descriptor.opened && (!callback || callback(descriptor)))
       .map(descriptor => descriptor.feed);
   }
 
@@ -166,9 +172,8 @@ export class FeedStore extends EventEmitter {
    * @param {DescriptorCallback} callback
    * @returns {Hypercore}
    */
-  findFeed (callback) {
-    const descriptor = this
-      .getDescriptors()
+  getOpenFeed (callback) {
+    const descriptor = this.getDescriptors()
       .find(descriptor => descriptor.opened && callback(descriptor));
 
     if (descriptor) {
@@ -177,26 +182,12 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
-   * Filter the loaded feeds using a filter callback.
-   *
-   * @param {DescriptorCallback} callback
-   * @returns {Hypercore[]}
-   */
-  filterFeeds (callback) {
-    const descriptors = this
-      .getDescriptors()
-      .filter(descriptor => descriptor.opened && callback(descriptor));
-
-    return descriptors.map(descriptor => descriptor.feed);
-  }
-
-  /**
    * Load feeds using a filter callback.
    *
    * @param {DescriptorCallback} callback
    * @returns {Promise<Hypercore[]>}
    */
-  async loadFeeds (callback) {
+  async openFeeds (callback) {
     await this.initialize();
 
     const descriptors = this.getDescriptors()
@@ -222,7 +213,7 @@ export class FeedStore extends EventEmitter {
    * @returns {Hypercore}
    */
   async openFeed (path, options = {}) {
-    assert(path, 'The path is required.');
+    assert(path, 'Missing path');
 
     await this.initialize();
 
@@ -231,11 +222,11 @@ export class FeedStore extends EventEmitter {
     let descriptor = this.getDescriptors().find(fd => fd.path === path);
 
     if (descriptor && key && !key.equals(descriptor.key)) {
-      throw new Error(`You are trying to open a feed with a different public key "${key.toString('hex')}".`);
+      throw new Error(`Invalid public key "${key.toString('hex')}".`);
     }
 
     if (!descriptor && key && this.getDescriptors().find(fd => fd.key.equals(key))) {
-      throw new Error(`There is already a feed registered with the public key "${key.toString('hex')}"`);
+      throw new Error(`Feed exists with same public key "${key.toString('hex')}"`);
     }
 
     if (!descriptor) {
@@ -252,14 +243,14 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async closeFeed (path) {
-    assert(path, 'The path is required.');
+    assert(path, 'Missing path');
 
     await this.initialize();
 
     const descriptor = this.getDescriptors().find(fd => fd.path === path);
 
     if (!descriptor) {
-      throw new Error('Feed not found to close.');
+      throw new Error(`Feed not found: ${path}`);
     }
 
     return descriptor.close();
@@ -274,7 +265,7 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async deleteDescriptor (path) {
-    assert(path, 'The path is required.');
+    assert(path, 'Missing path');
 
     await this.initialize();
 
@@ -315,8 +306,7 @@ export class FeedStore extends EventEmitter {
   /**
    * Creates a ReadableStream from the loaded feeds.
    *
-   * It uses a callback function to return the stream for each feed.
-   *
+   * Uses a callback function to return the stream for each feed.
    * NOTE: If the callback returns `false` it will ignore the feed.
    *
    * @param {StreamCallback} [callback] Function to call the feed.createReadStream() for each feed.

@@ -57,8 +57,8 @@ describe('FeedStore', () => {
     // It should return the same opened instance.
     await expect(feedStore.openFeed('/books')).resolves.toBe(booksFeed);
     // You can't open a feed with a different key.
-    await expect(feedStore.openFeed('/books', { key: Buffer.from('...') })).rejects.toThrow(/different public key/);
-    await expect(feedStore.openFeed('/foo', { key: booksFeed.key })).rejects.toThrow(/already a feed registered with the public key/);
+    await expect(feedStore.openFeed('/books', { key: Buffer.from('...') })).rejects.toThrow(/Invalid public key/);
+    await expect(feedStore.openFeed('/foo', { key: booksFeed.key })).rejects.toThrow(/Feed exists/);
   });
 
   test('Create duplicate feed', async () => {
@@ -103,14 +103,14 @@ describe('FeedStore', () => {
   });
 
   test('Feeds', async () => {
-    expect(feedStore.getFeeds().map(f => f.key)).toEqual([booksFeed.key, usersFeed.key]);
-    expect(feedStore.findFeed(fd => fd.key.equals(booksFeed.key))).toBe(booksFeed);
-    expect(feedStore.findFeed(() => false)).toBeUndefined();
-    expect(feedStore.filterFeeds(fd => fd.path === '/books')).toEqual([booksFeed]);
+    expect(feedStore.getOpenFeeds().map(f => f.key)).toEqual([booksFeed.key, usersFeed.key]);
+    expect(feedStore.getOpenFeed(fd => fd.key.equals(booksFeed.key))).toBe(booksFeed);
+    expect(feedStore.getOpenFeed(() => false)).toBeUndefined();
+    expect(feedStore.getOpenFeeds(fd => fd.path === '/books')).toEqual([booksFeed]);
   });
 
   test('Load feed', async () => {
-    const [feed] = await feedStore.loadFeeds(fd => fd.path === '/groups');
+    const [feed] = await feedStore.openFeeds(fd => fd.path === '/groups');
     expect(feed).toBeDefined();
     expect(feed.key).toEqual(groupsFeed.key);
     expect(feedStore.getDescriptors().find(fd => fd.path === '/groups')).toHaveProperty('opened', true);
@@ -129,7 +129,7 @@ describe('FeedStore', () => {
     expect(feedStore.getDescriptors().length).toBe(3);
 
     const booksFeed = await feedStore.openFeed('/books');
-    const [usersFeed] = await feedStore.loadFeeds(fd => fd.path === '/users');
+    const [usersFeed] = await feedStore.openFeeds(fd => fd.path === '/users');
     expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(2);
 
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
