@@ -167,7 +167,7 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
-   * Find a loaded feed using a filter callback.
+   * Find an opened feed using a filter callback.
    *
    * @param {DescriptorCallback} callback
    * @returns {Hypercore}
@@ -182,7 +182,7 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
-   * Load feeds using a filter callback.
+   * Open multiple feeds using a filter callback.
    *
    * @param {DescriptorCallback} callback
    * @returns {Promise<Hypercore[]>}

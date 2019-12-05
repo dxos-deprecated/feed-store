@@ -99,9 +99,9 @@ Remove a descriptor from the database by the path.
 
 Close the hypertrie database and their feeds.
 
-#### `feedStore.loadFeeds((descriptor) => Boolean) -> Promise<Hypercore[]>`
+#### `feedStore.openFeeds((descriptor) => Boolean) -> Promise<Hypercore[]>`
 
-Loads feeds using a function to filter what feeds you want to load from the database.
+Open multiple feeds using a function to filter what feeds you want to load from the database.
 
 ```javascript
 const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag === 'foo')
@@ -130,19 +130,15 @@ A `FeedDescriptor` provides the next information:
 
 Returns a list of descriptors.
 
-#### `feedStore.getFeeds() -> Hypercore[]`
+#### `feedStore.getOpenFeeds([descriptor => Boolean]) -> Hypercore[]`
 
-Returns a list of opened hypercore feeds.
-
-#### `feedStore.findFeed(descriptor => Boolean) -> Hypercore`
-
-Find an opened feed using a callback function.
+Returns a list of opened hypercore feeds, with optional filter.
 
 - `descriptor: FeedDescriptor`
 
-#### `feedStore.filterFeeds(descriptor => Boolean) -> Hypercore[]`
+#### `feedStore.getOpenFeed(descriptor => Boolean) -> Hypercore[]`
 
-Filter the opened feeds using a callback function.
+Find an opened feed using a filter callback.
 
 - `descriptor: FeedDescriptor`
 
