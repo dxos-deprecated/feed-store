@@ -23,7 +23,7 @@ describe('FeedDescriptor', () => {
     expect(() => new FeedDescriptor()).toThrow(/path is required/);
     expect(() => new FeedDescriptor('/foo', { key: 'foo' })).toThrow(/key must be a buffer/);
     expect(() => new FeedDescriptor('/foo', { key: crypto.keyPair().publicKey, secretKey: 'foo' })).toThrow(/secretKey must be a buffer/);
-    expect(() => new FeedDescriptor('/foo', { secretKey: crypto.keyPair().secretKey })).toThrow(/cannot have a secretKey without a key/);
+    expect(() => new FeedDescriptor('/foo', { secretKey: crypto.keyPair().secretKey })).toThrow(/missing publicKey/);
     expect(() => new FeedDescriptor('/foo', { valueEncoding: {} })).toThrow(/valueEncoding must be a string/);
   });
 

@@ -136,7 +136,7 @@ Returns a list of opened hypercore feeds.
 
 #### `feedStore.findFeed(descriptor => Boolean) -> Hypercore`
 
-Find a opened feed using a callback function.
+Find an opened feed using a callback function.
 
 - `descriptor: FeedDescriptor`
 

@@ -34,18 +34,27 @@ class FeedDescriptor {
    * @param {Hypercore} options.hypercore
    */
   constructor (path, options = {}) {
-    const { storage, key, secretKey, valueEncoding, timeout = 10 * 1000, hypercore = defaultHypercore, codecs = {}, metadata } = options;
+    const {
+      storage,
+      key,
+      secretKey,
+      valueEncoding,
+      timeout = 10 * 1000,
+      hypercore = defaultHypercore,
+      codecs = {},
+      metadata
+    } = options;
 
     assert(path && typeof path === 'string' && path.length > 0,
-      'The path is required and must be a valid string.');
+      'path is required and must be a valid string.');
     assert(!key || (Buffer.isBuffer(key) && key.length === sodium.crypto_sign_PUBLICKEYBYTES),
-      'The key must be a buffer of size crypto_sign_PUBLICKEYBYTES.');
+      'key must be a buffer of size crypto_sign_PUBLICKEYBYTES.');
     assert(!secretKey || (Buffer.isBuffer(secretKey) && secretKey.length === sodium.crypto_sign_SECRETKEYBYTES),
-      'The secretKey must be a buffer of size a crypto_sign_SECRETKEYBYTES.');
+      'secretKey must be a buffer of size crypto_sign_SECRETKEYBYTES.');
     assert(!secretKey || (secretKey && key),
-      'You cannot have a secretKey without a key.');
+      'missing publicKey.');
     assert(!valueEncoding || typeof valueEncoding === 'string',
-      'The valueEncoding must be a string.');
+      'valueEncoding must be a string.');
 
     this._storage = storage;
     this._path = path;
