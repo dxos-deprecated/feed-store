@@ -142,22 +142,32 @@ Find an opened feed using a filter callback.
 
 - `descriptor: FeedDescriptor`
 
-#### `feedStore.createReadStream(descriptor => (ReadableStream|Boolean)) -> ReadableStream`
+#### `feedStore.createReadStream([options], [callback]) -> ReadableStream`
 
 Creates a ReadableStream from the loaded feeds.
 
-It uses an optional callback function to return the stream for each feed.
-
-NOTE: If the callback returns `false` it will ignore the feed.
-
+- `options: Object`: Default options for each feed.createReadStream(options). Optional.
+- `callback: descriptor => (Object|undefined)`: Filter function to return options for each feed.createReadStream(). Returns `undefined` will ignore the feed. Optional.
 - `descriptor: FeedDescriptor`
 
 Usage:
 
 ```javascript
-const stream = feedStore.createReadStream(descriptor => {
-  if (descriptor.metadata.tag === 'foo') {
-    return descriptor.feed.createReadStream()
+
+// Live streaming from all the opened feeds.
+const stream = feedStore.createReadStream({ live: true })
+
+// Live streaming, from feeds filter by tag === 'foo'
+const stream = feedStore.createReadStream({ live: true }, ({ metadata }) => {
+  if (metadata.tag === 'foo') {
+    return { start: 10 } // Start reading from index 10.
+  }
+})
+
+// Live streaming, from feeds tag === 'foo'
+const stream = feedStore.createReadStream({ metadata }) => {
+  if (metadata.tag === 'foo') {
+    return { live: true, start: 10 } // Start reading from index 10.
   }
 })
 ```
