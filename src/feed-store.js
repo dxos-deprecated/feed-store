@@ -24,7 +24,7 @@ const STORE_NAMESPACE = '@feedstore';
  *
  * @callback StreamCallback
  * @param {FeedDescriptor} descriptor
- * @returns {(ReadableStream|boolean)}
+ * @returns {(Object|undefined)}
  */
 
 /**
@@ -306,29 +306,36 @@ export class FeedStore extends EventEmitter {
   /**
    * Creates a ReadableStream from the loaded feeds.
    *
-   * Uses a callback function to return the stream for each feed.
-   * NOTE: If the callback returns `false` it will ignore the feed.
-   *
-   * @param {StreamCallback} [callback] Function to call the feed.createReadStream() for each feed.
+   * @param {Object} [options] Default options for each feed.createReadStream(options).
+   * @param {StreamCallback} [callback] Filter function to return options for each feed.createReadStream(). Returns `undefined` will ignore the feed.
    * @returns {ReadableStream}
    */
-  createReadStream (callback = ({ feed }) => feed.createReadStream()) {
+  createReadStream (options, callback = () => ({})) {
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    } else if (options === undefined) {
+      options = {};
+    }
+
     const multiReader = multi.obj();
 
     this
       .getDescriptors()
       .filter(descriptor => descriptor.opened)
       .forEach(descriptor => {
-        const stream = callback(descriptor);
-        if (stream) {
-          multiReader.add(stream);
+        const { feed } = descriptor;
+        const streamOptions = callback(descriptor);
+        if (streamOptions) {
+          multiReader.add(feed.createReadStream(Object.assign({}, options, streamOptions)));
         }
       });
 
     const onFeed = (_, descriptor) => {
-      const stream = callback(descriptor);
-      if (stream) {
-        multiReader.add(stream);
+      const { feed } = descriptor;
+      const streamOptions = callback(descriptor);
+      if (streamOptions) {
+        multiReader.add(feed.createReadStream(Object.assign({}, options, streamOptions)));
       }
     };
 

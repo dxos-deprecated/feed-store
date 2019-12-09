@@ -262,28 +262,34 @@ describe('FeedStore', () => {
     ]);
 
     const stream = feedStore.createReadStream();
-    const liveStream = feedStore.createReadStream(({ feed }) => feed.createReadStream({ live: true }));
 
     const messages = [];
     stream.on('data', (chunk) => {
       messages.push(chunk.toString('utf8'));
     });
 
-    const liveMessages = [];
-    liveStream.on('data', (chunk) => {
-      liveMessages.push(chunk.toString('utf8'));
-    });
+    const liveStream1 = testLiveStream({ live: true });
+    const liveStream2 = testLiveStream({ live: false }, () => ({ live: true }));
 
     await eos(stream);
     expect(messages.sort()).toEqual(['bar1', 'foo1']);
 
     const quz = await feedStore.openFeed('/quz');
     await pify(quz.append.bind(quz))('quz1');
-    await wait(() => {
-      expect(liveMessages.sort()).toEqual(['bar1', 'foo1', 'quz1']);
-    });
 
-    liveStream.destroy();
+    await Promise.all([liveStream1, liveStream2]);
+
+    async function testLiveStream (...args) {
+      const liveMessages = [];
+      const liveStream = feedStore.createReadStream(...args);
+      liveStream.on('data', (chunk) => {
+        liveMessages.push(chunk.toString('utf8'));
+      });
+      await wait(() => {
+        expect(liveMessages.sort()).toEqual(['bar1', 'foo1', 'quz1']);
+      });
+      liveStream.destroy();
+    }
   });
 
   test('createReadStreamByFilter', async () => {
@@ -302,20 +308,20 @@ describe('FeedStore', () => {
         return feed.createReadStream();
       }
     });
-    const liveStream = feedStore.createReadStream(({ metadata = {}, feed }) => {
+    const liveStream1 = testLiveStream(({ metadata = {} }) => {
       if (metadata.topic === 'topic1') {
-        return feed.createReadStream({ live: true });
+        return { live: true };
+      }
+    });
+    const liveStream2 = testLiveStream({ live: false }, ({ metadata = {} }) => {
+      if (metadata.topic === 'topic1') {
+        return { live: true };
       }
     });
 
     const messages = [];
     stream.on('data', (chunk) => {
       messages.push(chunk.toString('utf8'));
-    });
-
-    const liveMessages = [];
-    liveStream.on('data', (chunk) => {
-      liveMessages.push(chunk.toString('utf8'));
     });
 
     await eos(stream);
@@ -327,10 +333,20 @@ describe('FeedStore', () => {
     const quz = await feedStore.openFeed('/quz', { metadata: { topic: 'topic1' } });
     await pify(quz.append.bind(quz))('quz1');
 
-    await wait(() => {
-      expect(liveMessages.sort()).toEqual(['foo1', 'quz1']);
-    });
+    await Promise.all([liveStream1, liveStream2]);
 
-    liveStream.destroy();
+    async function testLiveStream (...args) {
+      const liveMessages = [];
+      const liveStream = feedStore.createReadStream(...args);
+
+      liveStream.on('data', (chunk) => {
+        liveMessages.push(chunk.toString('utf8'));
+      });
+
+      await wait(() => {
+        expect(liveMessages.sort()).toEqual(['foo1', 'quz1']);
+      });
+      liveStream.destroy();
+    }
   });
 });
