@@ -59,6 +59,11 @@ describe('FeedStore', () => {
     // You can't open a feed with a different key.
     await expect(feedStore.openFeed('/books', { key: Buffer.from('...') })).rejects.toThrow(/Invalid public key/);
     await expect(feedStore.openFeed('/foo', { key: booksFeed.key })).rejects.toThrow(/Feed exists/);
+
+    // Create a reader feed from key
+    const feedStore2 = await FeedStore.create(ram);
+    const readerFeed = await feedStore2.openFeed('/reader', { key: booksFeed.key });
+    expect(readerFeed).toBeInstanceOf(hypercore);
   });
 
   test('Create duplicate feed', async () => {

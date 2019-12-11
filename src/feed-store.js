@@ -7,6 +7,7 @@ import assert from 'assert';
 import multi from 'multi-read-stream';
 import eos from 'end-of-stream';
 import hypertrie from 'hypertrie';
+import jsonBuffer from 'buffer-json-encoding';
 
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
@@ -74,7 +75,7 @@ export class FeedStore extends EventEmitter {
     this._defaultStorage = storage;
 
     const {
-      database = hypertrie(storage, { valueEncoding: 'json' }),
+      database = hypertrie(storage, { valueEncoding: jsonBuffer }),
       feedOptions = {},
       codecs = {},
       timeout,
@@ -123,8 +124,8 @@ export class FeedStore extends EventEmitter {
         const { path, key, secretKey, ...options } = data;
 
         this._createDescriptor(path, {
-          key: Buffer.from(key, 'hex'),
-          secretKey: Buffer.from(secretKey, 'hex'),
+          key,
+          secretKey,
           ...options
         });
       })
@@ -428,8 +429,8 @@ export class FeedStore extends EventEmitter {
 
     const newData = {
       path: descriptor.path,
-      key: descriptor.key.toString('hex'),
-      secretKey: descriptor.secretKey.toString('hex'),
+      key: descriptor.key,
+      secretKey: descriptor.secretKey,
       valueEncoding: descriptor.valueEncoding,
       metadata: descriptor.metadata
     };
