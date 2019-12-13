@@ -45,8 +45,10 @@
     "mutexify": "^1.2.0",
     "p-timeout": "^3.2.0",
     "pify": "^4.0.1",
+    "pump": "^3.0.0",
     "random-access-file": "^2.1.0",
-    "source-map-support": "^0.5.12"
+    "source-map-support": "^0.5.12",
+    "through2": "^3.0.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.7.0",

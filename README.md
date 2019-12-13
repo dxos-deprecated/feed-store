@@ -147,6 +147,12 @@ Find an opened feed using a filter callback.
 Creates a ReadableStream from the loaded feeds.
 
 - `options: Object`: Default options for each feed.createReadStream(options). Optional.
+  - `feedStoreInfo: Boolean`: Enables streaming objects with additional feed information:
+    - `data: Buffer`: The original chunk of the block data.
+    - `seq: Number`: Sequence number of the read block.
+    - `key: Buffer`: Key of the read feed.
+    - `path: String`: FeedStore path of the read feed.
+    - `metadata: Object`: FeedStore metadata of the read feed.
 - `callback: descriptor => (Object|undefined)`: Filter function to return options for each feed.createReadStream(). Returns `undefined` will ignore the feed. Optional.
 - `descriptor: FeedDescriptor`
 
@@ -169,6 +175,12 @@ const stream = feedStore.createReadStream({ metadata }) => {
   if (metadata.tag === 'foo') {
     return { live: true, start: 10 } // Start reading from index 10.
   }
+})
+
+// With additional information.
+const stream = feedStore.createReadStream({ feedStoreInfo: true })
+stream.on('data', data => {
+  console.log(data) // { data, seq, key, path, metadata }
 })
 ```
 

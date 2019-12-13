@@ -8,6 +8,8 @@ import multi from 'multi-read-stream';
 import eos from 'end-of-stream';
 import hypertrie from 'hypertrie';
 import jsonBuffer from 'buffer-json-encoding';
+import through from 'through2';
+import pump from 'pump';
 
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
@@ -321,24 +323,20 @@ export class FeedStore extends EventEmitter {
 
     const multiReader = multi.obj();
 
+    const addStream = descriptor => {
+      let streamOptions = callback(descriptor);
+      if (streamOptions) {
+        streamOptions = Object.assign({}, options, streamOptions);
+        multiReader.add(this._createFeedStream(descriptor, streamOptions));
+      }
+    };
+
     this
       .getDescriptors()
       .filter(descriptor => descriptor.opened)
-      .forEach(descriptor => {
-        const { feed } = descriptor;
-        const streamOptions = callback(descriptor);
-        if (streamOptions) {
-          multiReader.add(feed.createReadStream(Object.assign({}, options, streamOptions)));
-        }
-      });
+      .forEach(addStream);
 
-    const onFeed = (_, descriptor) => {
-      const { feed } = descriptor;
-      const streamOptions = callback(descriptor);
-      if (streamOptions) {
-        multiReader.add(feed.createReadStream(Object.assign({}, options, streamOptions)));
-      }
-    };
+    const onFeed = (_, descriptor) => addStream(descriptor);
 
     this.on('feed', onFeed);
     eos(multiReader, () => this.removeListener('feed', onFeed));
@@ -438,6 +436,33 @@ export class FeedStore extends EventEmitter {
     if (!oldData || (JSON.stringify(oldData) !== JSON.stringify(newData))) {
       await this._indexDB.put(key, newData);
     }
+  }
+
+  /**
+   * Creates a feed stream and stream the block data, seq, key and metadata.
+   *
+   * @param {FeedDescriptor} descriptor
+   * @param {Object} options
+   * @returns {ReadableStream}
+   */
+  _createFeedStream (descriptor, options) {
+    const { feed, path, key, metadata } = descriptor;
+
+    const { feedStoreInfo = false, ...feedStreamOptions } = options;
+
+    const stream = feed.createReadStream(feedStreamOptions);
+
+    if (!feedStoreInfo) {
+      return stream;
+    }
+
+    let seq = feedStreamOptions.start === undefined ? 0 : feedStreamOptions.start;
+
+    const addFeedStoreInfo = through.obj((chunk, _, next) => {
+      next(null, { data: chunk, seq: seq++, path, key, metadata });
+    });
+
+    return pump(stream, addFeedStoreInfo);
   }
 
   /**

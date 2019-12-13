@@ -354,4 +354,69 @@ describe('FeedStore', () => {
       liveStream.destroy();
     }
   });
+
+  test('createReadStream with feedStoreInfo', async () => {
+    const sort = (a, b) => {
+      if (a.data > b.data) return 1;
+      if (a.data < b.data) return -1;
+      return 0;
+    };
+
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+
+    const foo = await feedStore.openFeed('/foo');
+    const bar = await feedStore.openFeed('/bar');
+    await Promise.all([
+      pify(foo.append.bind(foo))('foo1'),
+      pify(foo.append.bind(foo))('foo2'),
+      pify(bar.append.bind(bar))('bar1'),
+      pify(bar.append.bind(bar))('bar2')
+    ]);
+
+    const stream = feedStore.createReadStream({ feedStoreInfo: true }, descriptor => {
+      if (descriptor.path === '/foo') {
+        return { start: 1 };
+      }
+
+      return {};
+    });
+
+    const messages = [];
+    stream.on('data', (chunk) => {
+      messages.push(chunk);
+    });
+
+    const liveStream1 = testLiveStream({ live: true, feedStoreInfo: true });
+
+    await eos(stream);
+
+    expect(messages.sort(sort)).toEqual([
+      { data: 'bar1', seq: 0, path: '/bar', key: bar.key, metadata: undefined },
+      { data: 'bar2', seq: 1, path: '/bar', key: bar.key, metadata: undefined },
+      { data: 'foo2', seq: 1, path: '/foo', key: foo.key, metadata: undefined }
+    ]);
+
+    const quz = await feedStore.openFeed('/quz');
+    await pify(quz.append.bind(quz))('quz1');
+
+    await liveStream1;
+
+    async function testLiveStream (...args) {
+      const liveMessages = [];
+      const liveStream = feedStore.createReadStream(...args);
+      liveStream.on('data', (chunk) => {
+        liveMessages.push(chunk);
+      });
+      await wait(() => {
+        expect(liveMessages.sort(sort)).toEqual([
+          { data: 'bar1', seq: 0, path: '/bar', key: bar.key, metadata: undefined },
+          { data: 'bar2', seq: 1, path: '/bar', key: bar.key, metadata: undefined },
+          { data: 'foo1', seq: 0, path: '/foo', key: foo.key, metadata: undefined },
+          { data: 'foo2', seq: 1, path: '/foo', key: foo.key, metadata: undefined },
+          { data: 'quz1', seq: 0, path: '/quz', key: quz.key, metadata: undefined }
+        ]);
+      });
+      liveStream.destroy();
+    }
+  });
 });
