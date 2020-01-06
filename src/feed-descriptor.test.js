@@ -2,8 +2,12 @@
 // Copyright 2019 DxOS.
 //
 
+import { promises as fs } from 'fs';
+import path from 'path';
+
 import ram from 'random-access-memory';
 import crypto from 'hypercore-crypto';
+import tempy from 'tempy';
 
 import FeedDescriptor from './feed-descriptor';
 
@@ -71,6 +75,59 @@ describe('FeedDescriptor', () => {
     fd.feed.append('test', (err) => {
       expect(err.message).toContain('This feed is not writable');
     });
+
+    // If we try to close a feed that is opening should wait for the open result.
+    const fd2 = new FeedDescriptor('/feed2', {
+      storage: ram
+    });
+
+    fd2.open();
+    await expect(fd2.close()).resolves.toBe(true);
+    expect(fd.opened).toBe(false);
+  });
+
+  test('Destroy', async () => {
+    const files = ['bitfield', 'key', 'signatures', 'data', 'secret_key', 'tree'];
+    const root = tempy.directory();
+
+    const fd1 = new FeedDescriptor('/feed1', {
+      storage: root
+    });
+
+    await fd1.open();
+
+    // Destroying multiple times should actually close once.
+    const results = await Promise.all([fd1.destroy(), fd1.destroy()]);
+    expect(results).toEqual([true, true]);
+    expect(fd1.opened).toBe(false);
+
+    await Promise.all(files.map(file => expect(fs.access(path.join(root, file))).rejects.toThrow(/ENOENT/)));
+
+    const fd2 = new FeedDescriptor('/feed2', {
+      storage: ram
+    });
+
+    await expect(fd2.destroy()).resolves.toBe(true);
+  });
+
+  test('Watch data', async (done) => {
+    const fd = new FeedDescriptor('/feed', {
+      storage: ram
+    });
+
+    await fd.open();
+
+    fd.watch((event, feed, descriptor) => {
+      expect(event).toBe('append');
+      expect(feed).toBe(fd.feed);
+      expect(descriptor).toBe(fd);
+      fd.watch(null);
+      fd.feed.append('test2', () => {
+        done();
+      });
+    });
+
+    fd.feed.append('test');
   });
 
   test('on open error should unlock the resource', async () => {
@@ -93,6 +150,7 @@ describe('FeedDescriptor', () => {
       storage: ram,
       hypercore: () => ({
         opened: true,
+        on () {},
         ready (cb) { cb(); },
         close () {
           throw new Error('close error');
@@ -103,6 +161,22 @@ describe('FeedDescriptor', () => {
     await fd.open();
 
     await expect(fd.close()).rejects.toThrow(/close error/);
+
+    const release = await fd.lock();
+    expect(release).toBeDefined();
+    await release();
+  });
+
+  test('on destroy should unlock the resource', async () => {
+    const fd = new FeedDescriptor('/feed', {
+      storage: ram
+    });
+
+    await fd.open();
+    await fd.close();
+
+    fd.feed._storage = null;
+    await expect(fd.destroy()).rejects.toThrow(/read property/);
 
     const release = await fd.lock();
     expect(release).toBeDefined();

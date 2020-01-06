@@ -77,6 +77,7 @@ class FeedDescriptor {
     this._locker = new Locker();
 
     this._feed = null;
+    this._listener = null;
   }
 
   /**
@@ -184,10 +185,61 @@ class FeedDescriptor {
       }
 
       await release();
+      return true;
     } catch (err) {
       await release();
       throw err;
     }
+  }
+
+  /**
+   * Destroy the hypercore and their storage.
+   *
+   * @returns {Promise}
+   */
+  async destroy () {
+    const promisifyDestroy = storage => pify(storage.destroy.bind(storage))().catch(() => {});
+
+    await this.close();
+
+    const release = await this.lock();
+
+    try {
+      if (!this._feed) {
+        await release();
+        return true;
+      }
+
+      const storage = this._feed._storage;
+
+      const destroyStorage = Promise.all([
+        promisifyDestroy(storage.bitfield),
+        promisifyDestroy(storage.tree),
+        promisifyDestroy(storage.data),
+        promisifyDestroy(storage.key),
+        promisifyDestroy(storage.secretKey),
+        promisifyDestroy(storage.signatures)
+      ]);
+
+      await pTimeout(destroyStorage, this._timeout);
+
+      this._feed = null;
+
+      await release();
+      return true;
+    } catch (err) {
+      await release();
+      throw err;
+    }
+  }
+
+  /**
+   * Watch for data events.
+   *
+   * @param {function} listener
+   */
+  watch (listener) {
+    this._listener = listener;
   }
 
   /**
@@ -220,6 +272,15 @@ class FeedDescriptor {
     );
 
     await pify(this._feed.ready.bind(this._feed))();
+
+    this._feed.on('append', () => this._emitDataEvent('append', this._feed, this));
+    this._feed.on('download', (...args) => this._emitDataEvent('download', ...args, this._feed, this));
+  }
+
+  _emitDataEvent (event, ...args) {
+    if (this._listener) {
+      this._listener(event, ...args);
+    }
   }
 }
 

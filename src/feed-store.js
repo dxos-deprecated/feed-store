@@ -13,8 +13,13 @@ import pump from 'pump';
 
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
+import Locker from './locker';
 
 const STORE_NAMESPACE = '@feedstore';
+
+const OPENED = 'opened';
+const CLOSED = 'closed';
+const DESTROYED = 'destroyed';
 
 /**
  *
@@ -96,15 +101,30 @@ export class FeedStore extends EventEmitter {
 
     this._descriptors = new Map();
 
-    this._initializing = false;
-    this._ready = false;
+    this._locker = new Locker();
+
+    this._state = null;
   }
 
   /**
    * @type {Boolean}
    */
   get opened () {
-    return this._ready && this._indexDB.opened;
+    return this._state === OPENED && this._indexDB.opened;
+  }
+
+  /**
+   * @type {Boolean}
+   */
+  get closed () {
+    return this._state === CLOSED || this._state === DESTROYED;
+  }
+
+  /**
+   * @type {Boolean}
+   */
+  get destroyed () {
+    return this._state === DESTROYED;
   }
 
   /**
@@ -113,33 +133,48 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async initialize () {
-    if (this._ready || this._initializing) {
-      return this.ready();
+    if (this._state === OPENED) {
+      return;
     }
 
-    this._initializing = true;
+    const release = await this._locker.lock();
 
-    const list = await this._indexDB.list(STORE_NAMESPACE);
+    if (this._state === OPENED) {
+      await release();
+      return;
+    }
 
-    await Promise.all(
-      list.map(async (data) => {
-        const { path, key, secretKey, ...options } = data;
+    if ([CLOSED, DESTROYED].includes(this._state)) {
+      await release();
+      throw new Error('FeedStore closed');
+    }
 
-        this._createDescriptor(path, {
-          key,
-          secretKey,
-          ...options
-        });
-      })
-    );
+    try {
+      const list = await this._indexDB.list(STORE_NAMESPACE);
 
-    this._initializing = false;
-    this._ready = true;
-    this.emit('ready');
+      await Promise.all(
+        list.map(async (data) => {
+          const { path, key, secretKey, ...options } = data;
+
+          this._createDescriptor(path, {
+            key,
+            secretKey,
+            ...options
+          });
+        })
+      );
+
+      this._state = OPENED;
+      this.emit('ready');
+      await release();
+    } catch (err) {
+      await release();
+      throw err;
+    }
   }
 
   async ready () {
-    if (this._ready) {
+    if (this._state === OPENED) {
       return;
     }
 
@@ -225,7 +260,7 @@ export class FeedStore extends EventEmitter {
     let descriptor = this.getDescriptors().find(fd => fd.path === path);
 
     if (descriptor && key && !key.equals(descriptor.key)) {
-      throw new Error(`Invalid public key "${key.toString('hex')}".`);
+      throw new Error(`Invalid public key "${key.toString('hex')}"`);
     }
 
     if (!descriptor && key && this.getDescriptors().find(fd => fd.key.equals(key))) {
@@ -296,14 +331,39 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async close () {
-    await this.initialize();
+    if ([CLOSED, DESTROYED].includes(this._state)) {
+      return true;
+    }
 
-    await Promise.all(this
-      .getDescriptors()
-      .filter(descriptor => descriptor.opened)
-      .map(fd => fd.close())
-    );
-    await this._indexDB.close();
+    const release = await this._locker.lock();
+
+    if ([CLOSED, DESTROYED].includes(this._state)) {
+      await release();
+      return true;
+    }
+
+    if (this._state !== OPENED) {
+      await release();
+      throw new Error('FeedStore is not opened');
+    }
+
+    try {
+      await Promise.all(this
+        .getDescriptors()
+        .map(descriptor => descriptor.close())
+      );
+
+      this._descriptors.clear();
+
+      await this._indexDB.close();
+
+      this._state = CLOSED;
+      await release();
+      return true;
+    } catch (err) {
+      await release();
+      throw err;
+    }
   }
 
   /**
@@ -342,6 +402,41 @@ export class FeedStore extends EventEmitter {
     eos(multiReader, () => this.removeListener('feed', onFeed));
 
     return multiReader;
+  }
+
+  /**
+   * Destroy the database and their related feeds.
+   *
+   * @returns {Promise}
+   */
+  async destroy () {
+    if (this._state === DESTROYED) {
+      return true;
+    }
+
+    const descriptors = this.getDescriptors();
+
+    await this.close();
+
+    const release = await this._locker.lock();
+
+    if (this._state === DESTROYED) {
+      await release();
+      return true;
+    }
+
+    try {
+      await Promise.all(descriptors.map(descriptor => descriptor.destroy()));
+
+      await this._indexDB.destroy();
+
+      this._state = DESTROYED;
+      await release();
+      return true;
+    } catch (err) {
+      await release();
+      throw err;
+    }
   }
 
   /**
@@ -393,24 +488,18 @@ export class FeedStore extends EventEmitter {
       return descriptor.feed;
     }
 
-    let release;
+    await descriptor.open();
 
-    try {
-      await descriptor.open();
+    await this._persistFeed(descriptor);
 
-      release = await descriptor.lock();
+    const { feed } = descriptor;
 
-      await this._persistFeed(descriptor);
+    // Watch for data events: append and download.
+    descriptor.watch((event, ...args) => this.emit(event, ...args));
 
-      this._defineFeedEvents(descriptor);
+    this.emit('feed', feed, descriptor);
 
-      await release();
-
-      return descriptor.feed;
-    } catch (err) {
-      if (release) await release();
-      throw err;
-    }
+    return descriptor.feed;
   }
 
   /**
@@ -463,21 +552,5 @@ export class FeedStore extends EventEmitter {
     });
 
     return pump(stream, addFeedStoreInfo);
-  }
-
-  /**
-   * Bubblings events from each feed to FeedStore.
-   *
-   * @private
-   * @param {FeedDescriptor} descriptor
-   * @returns {undefined}
-   */
-  _defineFeedEvents (descriptor) {
-    const { feed } = descriptor;
-
-    feed.on('append', () => this.emit('append', feed, descriptor));
-    feed.on('download', (...args) => this.emit('download', ...args, feed, descriptor));
-
-    this.emit('feed', feed, descriptor);
   }
 }
