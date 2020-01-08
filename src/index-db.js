@@ -28,11 +28,6 @@ class IndexDB {
     };
   }
 
-  get opened () {
-    const { feed } = this._hypertrie;
-    return this._hypertrie.opened && !!(feed.opened && !feed.closed);
-  }
-
   async list (path) {
     const list = await this._db.list(`${path}/`);
     return list.map(({ value }) => value);

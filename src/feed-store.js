@@ -110,7 +110,7 @@ export class FeedStore extends EventEmitter {
    * @type {Boolean}
    */
   get opened () {
-    return this._state === OPENED && this._indexDB.opened;
+    return this._state === OPENED;
   }
 
   /**
@@ -133,18 +133,14 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async initialize () {
-    if (this._state === OPENED) {
-      return;
-    }
-
     const release = await this._locker.lock();
 
-    if (this._state === OPENED) {
+    if (this.opened) {
       await release();
       return;
     }
 
-    if ([CLOSED, DESTROYED].includes(this._state)) {
+    if (this.closed) {
       await release();
       throw new Error('FeedStore closed');
     }
@@ -174,7 +170,7 @@ export class FeedStore extends EventEmitter {
   }
 
   async ready () {
-    if (this._state === OPENED) {
+    if (this.opened) {
       return;
     }
 
@@ -331,18 +327,18 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async close () {
-    if ([CLOSED, DESTROYED].includes(this._state)) {
+    if (this.closed) {
       return true;
     }
 
     const release = await this._locker.lock();
 
-    if ([CLOSED, DESTROYED].includes(this._state)) {
+    if (this.closed) {
       await release();
       return true;
     }
 
-    if (this._state !== OPENED) {
+    if (!this.opened) {
       await release();
       throw new Error('FeedStore is not opened');
     }

@@ -448,7 +448,6 @@ describe('FeedStore', () => {
     ]);
     expect(results).toEqual([true, true]);
     expect(feedStore.destroy()).resolves.toBe(true);
-
     expect(feedStore.destroyed).toBeTruthy();
 
     const access = ['/', feed1.key.toString('hex'), feed2.key.toString('hex')]
@@ -457,7 +456,14 @@ describe('FeedStore', () => {
 
     await Promise.all(access);
 
+    // Should throw an error if FeedStore is not initialized.
     const feedStore2 = new FeedStore(root);
     await expect(feedStore2.destroy()).rejects.toThrow(/not opened/);
+
+    // Should throw an error if we try to open a feed in a closed FeedStore.
+    const feedStore3 = await FeedStore.create(ram);
+    const result = feedStore3.destroy();
+    await expect(feedStore3.openFeed('/feed1')).rejects.toThrow(/FeedStore closed/);
+    return result;
   });
 });
