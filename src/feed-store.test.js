@@ -2,6 +2,9 @@
 // Copyright 2019 DxOS.
 //
 
+import { promises as fs } from 'fs';
+import path from 'path';
+
 import hypertrie from 'hypertrie';
 import tempy from 'tempy';
 import ram from 'random-access-memory';
@@ -33,10 +36,20 @@ describe('FeedStore', () => {
     feedStore2.initialize();
     await expect(feedStore2.ready()).resolves.toBeUndefined();
     expect(feedStore.opened).toBeTruthy();
+    await feedStore.ready();
   });
 
   test('Should throw an assert error creating without storage.', async () => {
     await expect(FeedStore.create()).rejects.toThrow(/storage is required/);
+  });
+
+  test('Should release the lock if there is an error on the initialization.', async () => {
+    const feedStore = new FeedStore(ram);
+    feedStore._indexDB = null;
+    await expect(feedStore.initialize()).rejects.toThrow(/read property/);
+    const release = await feedStore._locker.lock();
+    expect(release).toBeDefined();
+    await release();
   });
 
   test('Config default and valueEncoding utf-8', async () => {
@@ -125,6 +138,7 @@ describe('FeedStore', () => {
     await feedStore.close();
     expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(0);
     expect(feedStore.opened).toBe(false);
+    await expect(feedStore.close()).resolves.toBe(true);
   });
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
@@ -418,5 +432,38 @@ describe('FeedStore', () => {
       });
       liveStream.destroy();
     }
+  });
+
+  test('destroy', async () => {
+    const files = ['bitfield', 'key', 'signatures', 'data', 'secret_key', 'tree'];
+    const root = tempy.directory();
+
+    const feedStore = await FeedStore.create(root);
+    const feed1 = await feedStore.openFeed('/feed1');
+    const feed2 = await feedStore.openFeed('/feed2');
+
+    const results = await Promise.all([
+      feedStore.destroy(),
+      feedStore.destroy()
+    ]);
+    expect(results).toEqual([true, true]);
+    expect(feedStore.destroy()).resolves.toBe(true);
+    expect(feedStore.destroyed).toBeTruthy();
+
+    const access = ['/', feed1.key.toString('hex'), feed2.key.toString('hex')]
+      .map(directory => files.map(file => path.join(root, directory, file)))
+      .map(files => Promise.all(files.map(file => expect(fs.access(file)).rejects.toThrow(/ENOENT/))));
+
+    await Promise.all(access);
+
+    // Should throw an error if FeedStore is not initialized.
+    const feedStore2 = new FeedStore(root);
+    await expect(feedStore2.destroy()).rejects.toThrow(/not opened/);
+
+    // Should throw an error if we try to open a feed in a closed FeedStore.
+    const feedStore3 = await FeedStore.create(ram);
+    const result = feedStore3.destroy();
+    await expect(feedStore3.openFeed('/feed1')).rejects.toThrow(/FeedStore closed/);
+    return result;
   });
 });

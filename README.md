@@ -99,6 +99,10 @@ Remove a descriptor from the database by the path.
 
 Close the hypertrie database and their feeds.
 
+#### `feedStore.destroy() -> Promise`
+
+Destroy the data of the hypertrie database and their feeds.
+
 #### `feedStore.openFeeds((descriptor) => Boolean) -> Promise<Hypercore[]>`
 
 Open multiple feeds using a function to filter what feeds you want to load from the database.

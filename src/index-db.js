@@ -28,11 +28,6 @@ class IndexDB {
     };
   }
 
-  get opened () {
-    const { feed } = this._hypertrie;
-    return this._hypertrie.opened && !!(feed.opened && !feed.closed);
-  }
-
   async list (path) {
     const list = await this._db.list(`${path}/`);
     return list.map(({ value }) => value);
@@ -53,6 +48,21 @@ class IndexDB {
 
   async close () {
     return this._db.close();
+  }
+
+  async destroy () {
+    const promisifyDestroy = storage => pify(storage.destroy.bind(storage))().catch(() => {});
+
+    const storage = this._hypertrie.feed._storage;
+
+    return Promise.all([
+      promisifyDestroy(storage.bitfield),
+      promisifyDestroy(storage.tree),
+      promisifyDestroy(storage.data),
+      promisifyDestroy(storage.key),
+      promisifyDestroy(storage.secretKey),
+      promisifyDestroy(storage.signatures)
+    ]);
   }
 }
 
