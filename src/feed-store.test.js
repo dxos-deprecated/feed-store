@@ -138,7 +138,7 @@ describe('FeedStore', () => {
     await feedStore.close();
     expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(0);
     expect(feedStore.opened).toBe(false);
-    await expect(feedStore.close()).resolves.toBe(true);
+    await expect(feedStore.close()).resolves.toBeUndefined();
   });
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
@@ -442,12 +442,8 @@ describe('FeedStore', () => {
     const feed1 = await feedStore.openFeed('/feed1');
     const feed2 = await feedStore.openFeed('/feed2');
 
-    const results = await Promise.all([
-      feedStore.destroy(),
-      feedStore.destroy()
-    ]);
-    expect(results).toEqual([true, true]);
-    expect(feedStore.destroy()).resolves.toBe(true);
+    await Promise.all([feedStore.destroy(), feedStore.destroy()]);
+    expect(feedStore.destroy()).resolves.toBeUndefined();
     expect(feedStore.destroyed).toBeTruthy();
 
     const access = ['/', feed1.key.toString('hex'), feed2.key.toString('hex')]

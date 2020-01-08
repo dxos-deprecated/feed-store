@@ -328,14 +328,14 @@ export class FeedStore extends EventEmitter {
    */
   async close () {
     if (this.closed) {
-      return true;
+      return;
     }
 
     const release = await this._locker.lock();
 
     if (this.closed) {
       await release();
-      return true;
+      return;
     }
 
     if (!this.opened) {
@@ -355,7 +355,6 @@ export class FeedStore extends EventEmitter {
 
       this._state = CLOSED;
       await release();
-      return true;
     } catch (err) {
       await release();
       throw err;
@@ -407,7 +406,7 @@ export class FeedStore extends EventEmitter {
    */
   async destroy () {
     if (this._state === DESTROYED) {
-      return true;
+      return;
     }
 
     const descriptors = this.getDescriptors();
@@ -418,7 +417,7 @@ export class FeedStore extends EventEmitter {
 
     if (this._state === DESTROYED) {
       await release();
-      return true;
+      return;
     }
 
     try {
@@ -428,7 +427,6 @@ export class FeedStore extends EventEmitter {
 
       this._state = DESTROYED;
       await release();
-      return true;
     } catch (err) {
       await release();
       throw err;

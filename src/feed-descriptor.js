@@ -185,7 +185,6 @@ class FeedDescriptor {
       }
 
       await release();
-      return true;
     } catch (err) {
       await release();
       throw err;
@@ -207,7 +206,7 @@ class FeedDescriptor {
     try {
       if (!this._feed) {
         await release();
-        return true;
+        return;
       }
 
       const storage = this._feed._storage;
@@ -226,7 +225,6 @@ class FeedDescriptor {
       this._feed = null;
 
       await release();
-      return true;
     } catch (err) {
       await release();
       throw err;

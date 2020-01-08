@@ -82,7 +82,7 @@ describe('FeedDescriptor', () => {
     });
 
     fd2.open();
-    await expect(fd2.close()).resolves.toBe(true);
+    await expect(fd2.close()).resolves.toBeUndefined();
     expect(fd.opened).toBe(false);
   });
 
@@ -97,8 +97,7 @@ describe('FeedDescriptor', () => {
     await fd1.open();
 
     // Destroying multiple times should actually close once.
-    const results = await Promise.all([fd1.destroy(), fd1.destroy()]);
-    expect(results).toEqual([true, true]);
+    await Promise.all([fd1.destroy(), fd1.destroy()]);
     expect(fd1.opened).toBe(false);
 
     await Promise.all(files.map(file => expect(fs.access(path.join(root, file))).rejects.toThrow(/ENOENT/)));
@@ -107,7 +106,7 @@ describe('FeedDescriptor', () => {
       storage: ram
     });
 
-    await expect(fd2.destroy()).resolves.toBe(true);
+    await expect(fd2.destroy()).resolves.toBeUndefined();
   });
 
   test('Watch data', async (done) => {
