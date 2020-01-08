@@ -381,7 +381,7 @@ export class FeedStore extends EventEmitter {
     const addStream = descriptor => {
       let streamOptions = callback(descriptor);
       if (streamOptions) {
-        streamOptions = Object.assign({}, options, streamOptions);
+        streamOptions = Object.assign({}, options, typeof streamOptions === 'object' ? streamOptions : {});
         multiReader.add(this._createFeedStream(descriptor, streamOptions));
       }
     };

@@ -289,6 +289,7 @@ describe('FeedStore', () => {
 
     const liveStream1 = testLiveStream({ live: true });
     const liveStream2 = testLiveStream({ live: false }, () => ({ live: true }));
+    const liveStream3 = testLiveStream({ live: true }, () => true);
 
     await eos(stream);
     expect(messages.sort()).toEqual(['bar1', 'foo1']);
@@ -296,7 +297,7 @@ describe('FeedStore', () => {
     const quz = await feedStore.openFeed('/quz');
     await pify(quz.append.bind(quz))('quz1');
 
-    await Promise.all([liveStream1, liveStream2]);
+    await Promise.all([liveStream1, liveStream2, liveStream3]);
 
     async function testLiveStream (...args) {
       const liveMessages = [];

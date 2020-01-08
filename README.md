@@ -169,9 +169,7 @@ const stream = feedStore.createReadStream({ live: true })
 
 // Live streaming, from feeds filter by tag === 'foo'
 const stream = feedStore.createReadStream({ live: true }, ({ metadata }) => {
-  if (metadata.tag === 'foo') {
-    return { start: 10 } // Start reading from index 10.
-  }
+  return metadata.tag === 'foo';
 })
 
 // Live streaming, from feeds tag === 'foo'
