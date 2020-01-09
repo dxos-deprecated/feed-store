@@ -19,7 +19,7 @@ const STORE_NAMESPACE = '@feedstore';
 
 const OPENED = 'opened';
 const CLOSED = 'closed';
-const DESTROYED = 'destroyed';
+const CLOSING = 'closing';
 
 /**
  *
@@ -68,7 +68,7 @@ export class FeedStore extends EventEmitter {
    *
    * @param {RandomAccessStorage} storage RandomAccessStorage to use by default by the feeds.
    * @param {Object} options
-   * @param {Hypertrie} options.database Defines a custom hypertrie database to index the feeds.
+   * @param {function} options.database Defines a custom hypertrie database to index the feeds.
    * @param {Object} options.feedOptions Default options for each feed.
    * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
    * @param {number} options.timeout Defines how much to wait for open or close a feed.
@@ -82,14 +82,14 @@ export class FeedStore extends EventEmitter {
     this._defaultStorage = storage;
 
     const {
-      database = hypertrie(storage, { valueEncoding: jsonBuffer }),
+      database = (...args) => hypertrie(...args),
       feedOptions = {},
       codecs = {},
       timeout,
       hypercore
     } = options;
 
-    this._indexDB = new IndexDB(database);
+    this._database = database;
 
     this._defaultFeedOptions = feedOptions;
 
@@ -102,6 +102,8 @@ export class FeedStore extends EventEmitter {
     this._descriptors = new Map();
 
     this._locker = new Locker();
+
+    this._indexDB = null;
 
     this._state = null;
   }
@@ -117,14 +119,7 @@ export class FeedStore extends EventEmitter {
    * @type {Boolean}
    */
   get closed () {
-    return this._state === CLOSED || this._state === DESTROYED;
-  }
-
-  /**
-   * @type {Boolean}
-   */
-  get destroyed () {
-    return this._state === DESTROYED;
+    return this._state === CLOSED || this._state === null;
   }
 
   /**
@@ -140,12 +135,9 @@ export class FeedStore extends EventEmitter {
       return;
     }
 
-    if (this.closed) {
-      await release();
-      throw new Error('FeedStore closed');
-    }
-
     try {
+      this._indexDB = new IndexDB(this._database(this._defaultStorage, { valueEncoding: jsonBuffer }));
+
       const list = await this._indexDB.list(STORE_NAMESPACE);
 
       await Promise.all(
@@ -222,7 +214,7 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise<Hypercore[]>}
    */
   async openFeeds (callback) {
-    await this.initialize();
+    this._checkClosed();
 
     const descriptors = this.getDescriptors()
       .filter(descriptor => callback(descriptor));
@@ -249,7 +241,7 @@ export class FeedStore extends EventEmitter {
   async openFeed (path, options = {}) {
     assert(path, 'Missing path');
 
-    await this.initialize();
+    this._checkClosed();
 
     const { key } = options;
 
@@ -279,7 +271,7 @@ export class FeedStore extends EventEmitter {
   async closeFeed (path) {
     assert(path, 'Missing path');
 
-    await this.initialize();
+    this._checkClosed();
 
     const descriptor = this.getDescriptors().find(fd => fd.path === path);
 
@@ -301,7 +293,7 @@ export class FeedStore extends EventEmitter {
   async deleteDescriptor (path) {
     assert(path, 'Missing path');
 
-    await this.initialize();
+    this._checkClosed();
 
     const descriptor = this.getDescriptors().find(fd => fd.path === path);
 
@@ -324,11 +316,16 @@ export class FeedStore extends EventEmitter {
   /**
    * Close the hypertrie and their feeds.
    *
+   * @param {function} callback Execute a callback before release the lock.
    * @returns {Promise}
    */
-  async close () {
+  async close (callback = () => {}) {
     if (this.closed) {
       return;
+    }
+
+    if (this._state !== CLOSING) {
+      this._state = CLOSING;
     }
 
     const release = await this._locker.lock();
@@ -336,11 +333,6 @@ export class FeedStore extends EventEmitter {
     if (this.closed) {
       await release();
       return;
-    }
-
-    if (!this.opened) {
-      await release();
-      throw new Error('FeedStore is not opened');
     }
 
     try {
@@ -354,6 +346,8 @@ export class FeedStore extends EventEmitter {
       await this._indexDB.close();
 
       this._state = CLOSED;
+
+      await callback();
       await release();
     } catch (err) {
       await release();
@@ -369,6 +363,8 @@ export class FeedStore extends EventEmitter {
    * @returns {ReadableStream}
    */
   createReadStream (options, callback = () => ({})) {
+    this._checkClosed();
+
     if (typeof options === 'function') {
       callback = options;
       options = {};
@@ -405,32 +401,23 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async destroy () {
-    if (this._state === DESTROYED) {
+    if (this._state === null) {
       return;
     }
 
     const descriptors = this.getDescriptors();
 
-    await this.close();
+    await this.close(async () => {
+      if (this._state === null) {
+        return;
+      }
 
-    const release = await this._locker.lock();
-
-    if (this._state === DESTROYED) {
-      await release();
-      return;
-    }
-
-    try {
       await Promise.all(descriptors.map(descriptor => descriptor.destroy()));
 
       await this._indexDB.destroy();
 
-      this._state = DESTROYED;
-      await release();
-    } catch (err) {
-      await release();
-      throw err;
-    }
+      this._state = null;
+    });
   }
 
   /**
@@ -546,5 +533,11 @@ export class FeedStore extends EventEmitter {
     });
 
     return pump(stream, addFeedStoreInfo);
+  }
+
+  _checkClosed () {
+    if (this.closed || this._state === CLOSING) {
+      throw new Error('FeedStore closed');
+    }
   }
 }

@@ -8,6 +8,7 @@ import path from 'path';
 import ram from 'random-access-memory';
 import crypto from 'hypercore-crypto';
 import tempy from 'tempy';
+import pify from 'pify';
 
 import FeedDescriptor from './feed-descriptor';
 
@@ -107,6 +108,29 @@ describe('FeedDescriptor', () => {
     });
 
     await expect(fd2.destroy()).resolves.toBeUndefined();
+  });
+
+  test('Close and open again', async () => {
+    const root = tempy.directory();
+
+    const fd = new FeedDescriptor('/feed1', {
+      storage: root,
+      valueEncoding: 'utf-8'
+    });
+
+    await fd.open();
+    expect(fd.opened).toBe(true);
+
+    await pify(fd.feed.append.bind(fd.feed))('test');
+
+    await fd.close();
+    expect(fd.opened).toBe(false);
+
+    await fd.open();
+    expect(fd.opened).toBe(true);
+
+    const msg = await pify(fd.feed.head.bind(fd.feed))();
+    expect(msg).toBe('test');
   });
 
   test('Watch data', async (done) => {

@@ -98,7 +98,7 @@ class FeedDescriptor {
    * @type {Boolean}
    */
   get opened () {
-    return !!(this.feed && this._feed.opened && !this._feed.closed);
+    return !!(this._feed && this._feed.opened && !this._feed.closed);
   }
 
   /**

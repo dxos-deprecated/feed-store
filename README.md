@@ -62,7 +62,7 @@ Creates and initializes a new FeedStore.
 
 - `storage: RandomAccessStorage`: Storage used by the feeds to store their data.
 - `options`:
-  - `database: Hypertrie`: Defines a custom hypertrie database to index the feeds.
+  - `database: () => Hypertrie`: Defines a custom hypertrie database to index the feeds.
   - `feedOptions: Object`: Default hypercore options for each feed.
   - `codecs: Object`: Defines a list of available codecs to work with the feeds.
   - `timeout: number`: Defines the time (ms) to wait for open or close a feed. Default: `10 * 1000`.
@@ -95,9 +95,11 @@ Remove a descriptor from the database by the path.
 
 > This operation would not close the feed.
 
-#### `feedStore.close() -> Promise`
+#### `feedStore.close(callback = () => {}) -> Promise`
 
 Close the hypertrie database and their feeds.
+
+- `callback`: Execute a callback before release the lock.
 
 #### `feedStore.destroy() -> Promise`
 

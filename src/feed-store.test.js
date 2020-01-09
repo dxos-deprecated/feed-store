@@ -30,13 +30,17 @@ describe('FeedStore', () => {
     const feedStore = await FeedStore.create(ram);
     expect(feedStore).toBeInstanceOf(FeedStore);
     expect(feedStore.opened).toBeTruthy();
+    expect(feedStore.closed).toBeFalsy();
+    await expect(feedStore.ready()).resolves.toBeUndefined();
 
     const feedStore2 = new FeedStore(ram);
-    expect(feedStore).toBeInstanceOf(FeedStore);
+    expect(feedStore2).toBeInstanceOf(FeedStore);
+    expect(feedStore2.opened).toBeFalsy();
+    expect(feedStore2.closed).toBeTruthy();
     feedStore2.initialize();
     await expect(feedStore2.ready()).resolves.toBeUndefined();
-    expect(feedStore.opened).toBeTruthy();
-    await feedStore.ready();
+    expect(feedStore2.opened).toBeTruthy();
+    expect(feedStore2.closed).toBeFalsy();
   });
 
   test('Should throw an assert error creating without storage.', async () => {
@@ -44,9 +48,8 @@ describe('FeedStore', () => {
   });
 
   test('Should release the lock if there is an error on the initialization.', async () => {
-    const feedStore = new FeedStore(ram);
-    feedStore._indexDB = null;
-    await expect(feedStore.initialize()).rejects.toThrow(/read property/);
+    const feedStore = new FeedStore(ram, { database: () => { throw new Error('error'); } });
+    await expect(feedStore.initialize()).rejects.toThrow(/error/);
     const release = await feedStore._locker.lock();
     expect(release).toBeDefined();
     await release();
@@ -104,7 +107,7 @@ describe('FeedStore', () => {
     database.list = jest.fn((_, cb) => cb(null, []));
 
     const feedStore = await FeedStore.create(ram, {
-      database,
+      database: () => database,
       hypercore: customHypercore
     });
 
@@ -142,9 +145,8 @@ describe('FeedStore', () => {
   });
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
-    feedStore = await createDefault();
+    await feedStore.initialize();
 
-    expect(feedStore).toBeInstanceOf(FeedStore);
     expect(feedStore.getDescriptors().length).toBe(3);
 
     const booksFeed = await feedStore.openFeed('/books');
@@ -445,7 +447,6 @@ describe('FeedStore', () => {
 
     await Promise.all([feedStore.destroy(), feedStore.destroy()]);
     expect(feedStore.destroy()).resolves.toBeUndefined();
-    expect(feedStore.destroyed).toBeTruthy();
 
     const access = ['/', feed1.key.toString('hex'), feed2.key.toString('hex')]
       .map(directory => files.map(file => path.join(root, directory, file)))
@@ -453,14 +454,10 @@ describe('FeedStore', () => {
 
     await Promise.all(access);
 
-    // Should throw an error if FeedStore is not initialized.
-    const feedStore2 = new FeedStore(root);
-    await expect(feedStore2.destroy()).rejects.toThrow(/not opened/);
-
     // Should throw an error if we try to open a feed in a closed FeedStore.
     const feedStore3 = await FeedStore.create(ram);
-    const result = feedStore3.destroy();
+    const fd3Destroy = feedStore3.destroy();
     await expect(feedStore3.openFeed('/feed1')).rejects.toThrow(/FeedStore closed/);
-    return result;
+    await fd3Destroy;
   });
 });
