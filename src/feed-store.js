@@ -321,7 +321,7 @@ export class FeedStore extends EventEmitter {
    */
   async close (callback = () => {}) {
     if (this.closed) {
-      return;
+      throw new Error('FeedStore closed');
     }
 
     if (this._state !== CLOSING) {
