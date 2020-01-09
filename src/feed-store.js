@@ -116,13 +116,6 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
-   * @type {Boolean}
-   */
-  get closed () {
-    return this._state === CLOSED || this._state === null;
-  }
-
-  /**
    * Initialized FeedStore reading the persisted options and created each FeedDescriptor.
    *
    * @returns {Promise}
@@ -140,17 +133,10 @@ export class FeedStore extends EventEmitter {
 
       const list = await this._indexDB.list(STORE_NAMESPACE);
 
-      await Promise.all(
-        list.map(async (data) => {
-          const { path, key, secretKey, ...options } = data;
-
-          this._createDescriptor(path, {
-            key,
-            secretKey,
-            ...options
-          });
-        })
-      );
+      list.forEach(data => {
+        const { path, ...options } = data;
+        this._createDescriptor(path, options);
+      });
 
       this._state = OPENED;
       this.emit('ready');
@@ -320,7 +306,7 @@ export class FeedStore extends EventEmitter {
    * @returns {Promise}
    */
   async close (callback = () => {}) {
-    if (this.closed) {
+    if (this._state === CLOSED || this._state === null) {
       throw new Error('FeedStore closed');
     }
 
@@ -330,7 +316,7 @@ export class FeedStore extends EventEmitter {
 
     const release = await this._locker.lock();
 
-    if (this.closed) {
+    if (this._state === CLOSED || this._state === null) {
       await release();
       return;
     }
@@ -453,6 +439,28 @@ export class FeedStore extends EventEmitter {
       descriptor
     );
 
+    const append = () => this.emit('append', descriptor.feed, descriptor);
+    const download = (...args) => this.emit('download', ...args, descriptor.feed, descriptor);
+
+    descriptor.watch(async (event) => {
+      if (event === 'updated' || event === 'opened') {
+        await this._persistDescriptor(descriptor);
+      }
+
+      const { feed } = descriptor;
+
+      if (event === 'opened') {
+        feed.on('append', append);
+        feed.on('download', download);
+        return;
+      }
+
+      if (event === 'closed') {
+        feed.removeListener('append', append);
+        feed.removeListener('download', download);
+      }
+    });
+
     return descriptor;
   }
 
@@ -471,12 +479,7 @@ export class FeedStore extends EventEmitter {
 
     await descriptor.open();
 
-    await this._persistFeed(descriptor);
-
     const { feed } = descriptor;
-
-    // Watch for data events: append and download.
-    descriptor.watch((event, ...args) => this.emit(event, ...args));
 
     this.emit('feed', feed, descriptor);
 
@@ -490,7 +493,7 @@ export class FeedStore extends EventEmitter {
    * @param {FeedDescriptor} descriptor
    * @returns {Promise}
    */
-  async _persistFeed (descriptor) {
+  async _persistDescriptor (descriptor) {
     const key = `${STORE_NAMESPACE}/${descriptor.key.toString('hex')}`;
 
     const oldData = await this._indexDB.get(key);
@@ -503,7 +506,7 @@ export class FeedStore extends EventEmitter {
       metadata: descriptor.metadata
     };
 
-    if (!oldData || (JSON.stringify(oldData) !== JSON.stringify(newData))) {
+    if (!oldData || (JSON.stringify(oldData.metadata) !== JSON.stringify(newData.metadata))) {
       await this._indexDB.put(key, newData);
     }
   }
@@ -536,7 +539,7 @@ export class FeedStore extends EventEmitter {
   }
 
   _checkClosed () {
-    if (this.closed || this._state === CLOSING) {
+    if (this._state === CLOSED || this._state === CLOSING || this._state === null) {
       throw new Error('FeedStore closed');
     }
   }

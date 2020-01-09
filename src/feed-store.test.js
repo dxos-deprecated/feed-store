@@ -30,17 +30,14 @@ describe('FeedStore', () => {
     const feedStore = await FeedStore.create(ram);
     expect(feedStore).toBeInstanceOf(FeedStore);
     expect(feedStore.opened).toBeTruthy();
-    expect(feedStore.closed).toBeFalsy();
     await expect(feedStore.ready()).resolves.toBeUndefined();
 
     const feedStore2 = new FeedStore(ram);
     expect(feedStore2).toBeInstanceOf(FeedStore);
     expect(feedStore2.opened).toBeFalsy();
-    expect(feedStore2.closed).toBeTruthy();
     feedStore2.initialize();
     await expect(feedStore2.ready()).resolves.toBeUndefined();
     expect(feedStore2.opened).toBeTruthy();
-    expect(feedStore2.closed).toBeFalsy();
   });
 
   test('Should throw an assert error creating without storage.', async () => {
@@ -95,7 +92,7 @@ describe('FeedStore', () => {
   test('Create and close a feed', async () => {
     await expect(feedStore.closeFeed('/fooo')).rejects.toThrow(/Feed not found/);
     await feedStore.closeFeed('/groups');
-    expect(groupsFeed.closed).toBeTruthy();
+    expect(groupsFeed.opened).toBeTruthy();
   });
 
   test('Config default + custom database + custom hypercore', async () => {
@@ -459,5 +456,32 @@ describe('FeedStore', () => {
     const fd3Destroy = feedStore3.destroy();
     await expect(feedStore3.openFeed('/feed1')).rejects.toThrow(/FeedStore closed/);
     await fd3Destroy;
+  });
+
+  test('append event', async (done) => {
+    const feedStore = await FeedStore.create(ram);
+    const feed = await feedStore.openFeed('/test');
+
+    feedStore.on('append', (f) => {
+      expect(f).toBe(feed);
+      done();
+    });
+
+    feed.append('test');
+  });
+
+  test('update metadata', async () => {
+    const root = tempy.directory();
+    const feedStore = await FeedStore.create(root);
+    await feedStore.openFeed('/test', { metadata: { tag: 0 } });
+    let descriptor = feedStore.getDescriptors().find(fd => fd.path === '/test');
+    await descriptor.setMetadata({ tag: 1 });
+    expect(descriptor.metadata).toEqual({ tag: 1 });
+
+    // Check that the metadata was updated in indexdb.
+    await feedStore.close();
+    await feedStore.initialize();
+    descriptor = feedStore.getDescriptors().find(fd => fd.path === '/test');
+    expect(descriptor.metadata).toEqual({ tag: 1 });
   });
 });

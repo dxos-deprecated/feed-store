@@ -138,19 +138,13 @@ describe('FeedDescriptor', () => {
       storage: ram
     });
 
-    await fd.open();
-
-    fd.watch((event, feed, descriptor) => {
-      expect(event).toBe('append');
-      expect(feed).toBe(fd.feed);
-      expect(descriptor).toBe(fd);
+    fd.watch(event => {
+      expect(event).toBe('opened');
       fd.watch(null);
-      fd.feed.append('test2', () => {
-        done();
-      });
+      fd.close().then(done);
     });
 
-    fd.feed.append('test');
+    await fd.open();
   });
 
   test('on open error should unlock the resource', async () => {
