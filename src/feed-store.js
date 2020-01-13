@@ -443,13 +443,15 @@ export class FeedStore extends EventEmitter {
     const download = (...args) => this.emit('download', ...args, descriptor.feed, descriptor);
 
     descriptor.watch(async (event) => {
-      if (event === 'updated' || event === 'opened') {
+      if (event === 'updated') {
         await this._persistDescriptor(descriptor);
+        return;
       }
 
       const { feed } = descriptor;
 
       if (event === 'opened') {
+        await this._persistDescriptor(descriptor);
         feed.on('append', append);
         feed.on('download', download);
         return;
