@@ -95,15 +95,9 @@ Remove a descriptor from the database by the path.
 
 > This operation would not close the feed.
 
-#### `feedStore.close(callback = () => {}) -> Promise`
+#### `feedStore.close() -> Promise`
 
 Close the hypertrie database and their feeds.
-
-- `callback`: Execute a callback before release the lock.
-
-#### `feedStore.destroy() -> Promise`
-
-Destroy the data of the hypertrie database and their feeds.
 
 #### `feedStore.openFeeds((descriptor) => Boolean) -> Promise<Hypercore[]>`
 

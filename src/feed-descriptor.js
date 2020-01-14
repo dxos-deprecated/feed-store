@@ -136,6 +136,15 @@ class FeedDescriptor {
     return this._metadata;
   }
 
+  /**
+   * @param {*} metadata
+   * @returns {Promise}
+   */
+  async setMetadata (metadata) {
+    this._metadata = metadata;
+    await this._emit('updated');
+  }
+
   /*
    * Lock the resource.
    *
@@ -163,6 +172,7 @@ class FeedDescriptor {
 
     try {
       await pTimeout(this._open(), this._timeout);
+      await this._emit('opened');
       await release();
       return this._feed;
     } catch (err) {
@@ -179,11 +189,14 @@ class FeedDescriptor {
   async close () {
     const release = await this.lock();
 
-    try {
-      if (this.opened) {
-        await pTimeout(pify(this._feed.close.bind(this._feed))(), this._timeout);
-      }
+    if (!this.opened) {
+      await release();
+      return;
+    }
 
+    try {
+      await pTimeout(pify(this._feed.close.bind(this._feed))(), this._timeout);
+      await this._emit('closed');
       await release();
     } catch (err) {
       await release();
@@ -192,47 +205,7 @@ class FeedDescriptor {
   }
 
   /**
-   * Destroy the hypercore and their storage.
-   *
-   * @returns {Promise}
-   */
-  async destroy () {
-    const promisifyDestroy = storage => pify(storage.destroy.bind(storage))().catch(() => {});
-
-    await this.close();
-
-    const release = await this.lock();
-
-    try {
-      if (!this._feed) {
-        await release();
-        return;
-      }
-
-      const storage = this._feed._storage;
-
-      const destroyStorage = Promise.all([
-        promisifyDestroy(storage.bitfield),
-        promisifyDestroy(storage.tree),
-        promisifyDestroy(storage.data),
-        promisifyDestroy(storage.key),
-        promisifyDestroy(storage.secretKey),
-        promisifyDestroy(storage.signatures)
-      ]);
-
-      await pTimeout(destroyStorage, this._timeout);
-
-      this._feed = null;
-
-      await release();
-    } catch (err) {
-      await release();
-      throw err;
-    }
-  }
-
-  /**
-   * Watch for data events.
+   * Watch for descriptor events.
    *
    * @param {function} listener
    */
@@ -270,14 +243,14 @@ class FeedDescriptor {
     );
 
     await pify(this._feed.ready.bind(this._feed))();
-
-    this._feed.on('append', () => this._emitDataEvent('append', this._feed, this));
-    this._feed.on('download', (...args) => this._emitDataEvent('download', ...args, this._feed, this));
   }
 
-  _emitDataEvent (event, ...args) {
+  /**
+   * Asynchronous emitter.
+   */
+  async _emit (event, ...args) {
     if (this._listener) {
-      this._listener(event, ...args);
+      await this._listener(event, ...args);
     }
   }
 }

@@ -2,9 +2,6 @@
 // Copyright 2019 DxOS.
 //
 
-import { promises as fs } from 'fs';
-import path from 'path';
-
 import hypertrie from 'hypertrie';
 import tempy from 'tempy';
 import ram from 'random-access-memory';
@@ -30,17 +27,15 @@ describe('FeedStore', () => {
     const feedStore = await FeedStore.create(ram);
     expect(feedStore).toBeInstanceOf(FeedStore);
     expect(feedStore.opened).toBeTruthy();
-    expect(feedStore.closed).toBeFalsy();
+    expect(feedStore.storage).toBe(ram);
     await expect(feedStore.ready()).resolves.toBeUndefined();
 
     const feedStore2 = new FeedStore(ram);
     expect(feedStore2).toBeInstanceOf(FeedStore);
     expect(feedStore2.opened).toBeFalsy();
-    expect(feedStore2.closed).toBeTruthy();
     feedStore2.initialize();
     await expect(feedStore2.ready()).resolves.toBeUndefined();
     expect(feedStore2.opened).toBeTruthy();
-    expect(feedStore2.closed).toBeFalsy();
   });
 
   test('Should throw an assert error creating without storage.', async () => {
@@ -95,7 +90,7 @@ describe('FeedStore', () => {
   test('Create and close a feed', async () => {
     await expect(feedStore.closeFeed('/fooo')).rejects.toThrow(/Feed not found/);
     await feedStore.closeFeed('/groups');
-    expect(groupsFeed.closed).toBeTruthy();
+    expect(groupsFeed.opened).toBeTruthy();
   });
 
   test('Config default + custom database + custom hypercore', async () => {
@@ -437,27 +432,57 @@ describe('FeedStore', () => {
     }
   });
 
-  test('destroy', async () => {
-    const files = ['bitfield', 'key', 'signatures', 'data', 'secret_key', 'tree'];
+  test('append event', async (done) => {
+    const feedStore = await FeedStore.create(ram);
+    const feed = await feedStore.openFeed('/test');
+
+    feedStore.on('append', (f) => {
+      expect(f).toBe(feed);
+      done();
+    });
+
+    feed.append('test');
+  });
+
+  test('update metadata', async () => {
     const root = tempy.directory();
-
     const feedStore = await FeedStore.create(root);
-    const feed1 = await feedStore.openFeed('/feed1');
-    const feed2 = await feedStore.openFeed('/feed2');
+    await feedStore.openFeed('/test', { metadata: { tag: 0 } });
+    let descriptor = feedStore.getDescriptors().find(fd => fd.path === '/test');
+    await descriptor.setMetadata({ tag: 1 });
+    expect(descriptor.metadata).toEqual({ tag: 1 });
 
-    await Promise.all([feedStore.destroy(), feedStore.destroy()]);
-    expect(feedStore.destroy()).resolves.toBeUndefined();
+    // Check that the metadata was updated in indexdb.
+    await feedStore.close();
+    await feedStore.initialize();
+    descriptor = feedStore.getDescriptors().find(fd => fd.path === '/test');
+    expect(descriptor.metadata).toEqual({ tag: 1 });
+  });
 
-    const access = ['/', feed1.key.toString('hex'), feed2.key.toString('hex')]
-      .map(directory => files.map(file => path.join(root, directory, file)))
-      .map(files => Promise.all(files.map(file => expect(fs.access(file)).rejects.toThrow(/ENOENT/))));
+  test('openFeed should wait until FeedStore is ready', async () => {
+    const feedStore = new FeedStore(ram);
+    feedStore.initialize();
+    const feed = await feedStore.openFeed('/test');
+    expect(feed).toBeDefined();
+  });
 
-    await Promise.all(access);
+  test('createReadStream should destroy if FeedStore is closed', async (done) => {
+    const feedStore = new FeedStore(ram);
 
-    // Should throw an error if we try to open a feed in a closed FeedStore.
-    const feedStore3 = await FeedStore.create(ram);
-    const fd3Destroy = feedStore3.destroy();
-    await expect(feedStore3.openFeed('/feed1')).rejects.toThrow(/FeedStore closed/);
-    await fd3Destroy;
+    const stream = feedStore.createReadStream();
+    await new Promise(resolve => eos(stream, err => {
+      expect(err.message).toBe('FeedStore closed');
+      resolve();
+    }));
+
+    await feedStore.initialize();
+
+    const stream2 = feedStore.createReadStream();
+    eos(stream2, err => {
+      expect(err.message).toBe('FeedStore closed');
+      done();
+    });
+
+    await feedStore.close();
   });
 });
