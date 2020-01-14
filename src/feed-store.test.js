@@ -2,9 +2,6 @@
 // Copyright 2019 DxOS.
 //
 
-import { promises as fs } from 'fs';
-import path from 'path';
-
 import hypertrie from 'hypertrie';
 import tempy from 'tempy';
 import ram from 'random-access-memory';
@@ -434,30 +431,6 @@ describe('FeedStore', () => {
     }
   });
 
-  test('destroy', async () => {
-    const files = ['bitfield', 'key', 'signatures', 'data', 'secret_key', 'tree'];
-    const root = tempy.directory();
-
-    const feedStore = await FeedStore.create(root);
-    const feed1 = await feedStore.openFeed('/feed1');
-    const feed2 = await feedStore.openFeed('/feed2');
-
-    await Promise.all([feedStore.destroy(), feedStore.destroy()]);
-    expect(feedStore.destroy()).resolves.toBeUndefined();
-
-    const access = ['/', feed1.key.toString('hex'), feed2.key.toString('hex')]
-      .map(directory => files.map(file => path.join(root, directory, file)))
-      .map(files => Promise.all(files.map(file => expect(fs.access(file)).rejects.toThrow(/ENOENT/))));
-
-    await Promise.all(access);
-
-    // Should throw an error if we try to open a feed in a closed FeedStore.
-    const feedStore3 = await FeedStore.create(ram);
-    const fd3Destroy = feedStore3.destroy();
-    await expect(feedStore3.openFeed('/feed1')).rejects.toThrow(/FeedStore closed/);
-    await fd3Destroy;
-  });
-
   test('append event', async (done) => {
     const feedStore = await FeedStore.create(ram);
     const feed = await feedStore.openFeed('/test');
@@ -483,5 +456,32 @@ describe('FeedStore', () => {
     await feedStore.initialize();
     descriptor = feedStore.getDescriptors().find(fd => fd.path === '/test');
     expect(descriptor.metadata).toEqual({ tag: 1 });
+  });
+
+  test('openFeed should wait until FeedStore is ready', async () => {
+    const feedStore = new FeedStore(ram);
+    feedStore.initialize();
+    const feed = await feedStore.openFeed('/test');
+    expect(feed).toBeDefined();
+  });
+
+  test('createReadStream should destroy if FeedStore is closed', async (done) => {
+    const feedStore = new FeedStore(ram);
+
+    const stream = feedStore.createReadStream();
+    await new Promise(resolve => eos(stream, err => {
+      expect(err.message).toBe('FeedStore closed');
+      resolve();
+    }));
+
+    await feedStore.initialize();
+
+    const stream2 = feedStore.createReadStream();
+    eos(stream2, err => {
+      expect(err.message).toBe('FeedStore closed');
+      done();
+    });
+
+    await feedStore.close();
   });
 });

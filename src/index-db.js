@@ -49,21 +49,6 @@ class IndexDB {
   async close () {
     return this._db.close();
   }
-
-  async destroy () {
-    const promisifyDestroy = storage => pify(storage.destroy.bind(storage))().catch(() => {});
-
-    const storage = this._hypertrie.feed._storage;
-
-    return Promise.all([
-      promisifyDestroy(storage.bitfield),
-      promisifyDestroy(storage.tree),
-      promisifyDestroy(storage.data),
-      promisifyDestroy(storage.key),
-      promisifyDestroy(storage.secretKey),
-      promisifyDestroy(storage.signatures)
-    ]);
-  }
 }
 
 export default IndexDB;
