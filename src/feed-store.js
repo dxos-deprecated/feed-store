@@ -139,9 +139,15 @@ export class FeedStore extends EventEmitter {
 
     const release = await this._locker.lock();
 
+    const lastState = this._state;
+
     if (this._state === OPENED) {
       await release();
       return;
+    }
+
+    if (this._state === CLOSED) {
+      this._state = OPENING;
     }
 
     try {
@@ -158,6 +164,7 @@ export class FeedStore extends EventEmitter {
       this.emit('ready');
       await release();
     } catch (err) {
+      this._state = lastState;
       await release();
       throw err;
     }
@@ -331,9 +338,15 @@ export class FeedStore extends EventEmitter {
 
     const release = await this._locker.lock();
 
+    const lastState = this._state;
+
     if (this._state === CLOSED) {
       await release();
       return;
+    }
+
+    if (this._state === OPENED) {
+      this._state = CLOSING;
     }
 
     try {
@@ -351,6 +364,7 @@ export class FeedStore extends EventEmitter {
       this.emit('closed');
       await release();
     } catch (err) {
+      this._state = lastState;
       await release();
       throw err;
     }
