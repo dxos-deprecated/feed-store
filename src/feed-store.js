@@ -102,11 +102,28 @@ export class FeedStore extends EventEmitter {
 
     this._descriptors = new Map();
 
+    this._readers = new Set();
+
     this._locker = new Locker();
 
     this._indexDB = null;
 
     this._state = CLOSED;
+
+    this.on('feed', (_, descriptor) => {
+      this._readers.forEach(reader => {
+        reader.addFeed(descriptor);
+      });
+    });
+
+    this.on('closed', () => {
+      this._readers.forEach(reader => {
+        if (!reader.stream.destroyed) {
+          reader.stream.destroy(new Error('FeedStore closed'));
+        }
+      });
+      this._readers.clear();
+    });
   }
 
   /**
@@ -228,7 +245,7 @@ export class FeedStore extends EventEmitter {
     const descriptors = this.getDescriptors()
       .filter(descriptor => callback(descriptor));
 
-    return Promise.all(descriptors.map(descriptor => this._openFeed(descriptor)));
+    return Promise.all(descriptors.map(descriptor => descriptor.open()));
   }
 
   /**
@@ -268,7 +285,7 @@ export class FeedStore extends EventEmitter {
       descriptor = this._createDescriptor(path, options);
     }
 
-    return this._openFeed(descriptor);
+    return descriptor.open();
   }
 
   /**
@@ -378,46 +395,50 @@ export class FeedStore extends EventEmitter {
    * @returns {ReadableStream}
    */
   createReadStream (options, callback = () => ({})) {
-    const multiReader = multi.obj();
+    if (typeof options === 'function') {
+      callback = options;
+      options = {};
+    } else if (options === undefined) {
+      options = {};
+    }
 
-    this._isOpen().then(() => {
-      if (typeof options === 'function') {
-        callback = options;
-        options = {};
-      } else if (options === undefined) {
-        options = {};
-      }
+    const reader = {
+      stream: multi.obj(),
+      addFeed: descriptor => {
+        const keyStr = descriptor.key.toString('hex');
 
-      const addStream = descriptor => {
+        if (reader.feeds.includes(keyStr)) {
+          return;
+        }
+
         let streamOptions = callback(descriptor);
         if (streamOptions) {
           streamOptions = Object.assign({}, options, typeof streamOptions === 'object' ? streamOptions : {});
-          multiReader.add(this._createFeedStream(descriptor, streamOptions));
+          reader.stream.add(this._createFeedStream(descriptor, streamOptions));
+          reader.feeds.push(keyStr);
         }
-      };
+      },
+      feeds: []
+    };
 
+    this._readers.add(reader);
+
+    eos(reader.stream, () => {
+      this._readers.delete(reader);
+    });
+
+    this._isOpen().then(() => {
       this
         .getDescriptors()
         .filter(descriptor => descriptor.opened)
-        .forEach(addStream);
-
-      const onFeed = (_, descriptor) => addStream(descriptor);
-
-      this.on('feed', onFeed);
-      eos(multiReader, () => this.removeListener('feed', onFeed));
+        .forEach(reader.addFeed);
     }).catch(err => {
-      if (!multiReader.destroyed) {
-        multiReader.destroy(err);
+      if (!reader.stream.destroyed) {
+        reader.stream.destroy(err);
       }
     });
 
-    this.on('closed', () => {
-      if (!multiReader.destroyed) {
-        multiReader.destroy(new Error('FeedStore closed'));
-      }
-    });
-
-    return multiReader;
+    return reader.stream;
   }
 
   /**
@@ -468,6 +489,7 @@ export class FeedStore extends EventEmitter {
         await this._persistDescriptor(descriptor);
         feed.on('append', append);
         feed.on('download', download);
+        this.emit('feed', feed, descriptor);
         return;
       }
 
@@ -478,28 +500,6 @@ export class FeedStore extends EventEmitter {
     });
 
     return descriptor;
-  }
-
-  /**
-   * Atomic operation to open or create a feed referenced by the FeedDescriptor.
-   *
-   * @private
-   * @param {FeedDescriptor} descriptor
-   * @returns {Promise<Hypercore>}
-   */
-  async _openFeed (descriptor) {
-    // Fast return without need to lock the descriptor.
-    if (descriptor.opened) {
-      return descriptor.feed;
-    }
-
-    await descriptor.open();
-
-    const { feed } = descriptor;
-
-    this.emit('feed', feed, descriptor);
-
-    return descriptor.feed;
   }
 
   /**
