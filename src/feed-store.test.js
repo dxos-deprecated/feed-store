@@ -285,8 +285,7 @@ describe('FeedStore', () => {
     });
 
     const liveStream1 = testLiveStream({ live: true });
-    const liveStream2 = testLiveStream({ live: false }, () => ({ live: true }));
-    const liveStream3 = testLiveStream({ live: true }, () => true);
+    const liveStream2 = testLiveStream(() => ({ live: true }));
 
     await eos(stream);
     expect(messages.sort()).toEqual(['bar1', 'foo1']);
@@ -294,7 +293,7 @@ describe('FeedStore', () => {
     const quz = await feedStore.openFeed('/quz');
     await pify(quz.append.bind(quz))('quz1');
 
-    await Promise.all([liveStream1, liveStream2, liveStream3]);
+    await Promise.all([liveStream1, liveStream2]);
 
     async function testLiveStream (...args) {
       const liveMessages = [];
@@ -320,17 +319,13 @@ describe('FeedStore', () => {
       pify(bar.append.bind(bar))('bar1')
     ]);
 
-    const stream = feedStore.createReadStream(({ metadata = {}, feed }) => {
+    const stream = feedStore.createReadStream(({ metadata = {} }) => {
       if (metadata.topic === 'topic1') {
-        return feed.createReadStream();
+        return true;
       }
     });
-    const liveStream1 = testLiveStream(({ metadata = {} }) => {
-      if (metadata.topic === 'topic1') {
-        return { live: true };
-      }
-    });
-    const liveStream2 = testLiveStream({ live: false }, ({ metadata = {} }) => {
+
+    const liveStream = testLiveStream(({ metadata = {} }) => {
       if (metadata.topic === 'topic1') {
         return { live: true };
       }
@@ -350,7 +345,7 @@ describe('FeedStore', () => {
     const quz = await feedStore.openFeed('/quz', { metadata: { topic: 'topic1' } });
     await pify(quz.append.bind(quz))('quz1');
 
-    await Promise.all([liveStream1, liveStream2]);
+    await liveStream;
 
     async function testLiveStream (...args) {
       const liveMessages = [];
@@ -385,12 +380,13 @@ describe('FeedStore', () => {
       pify(bar.append.bind(bar))('bar2')
     ]);
 
-    const stream = feedStore.createReadStream({ feedStoreInfo: true }, descriptor => {
+    const stream = feedStore.createReadStream(descriptor => {
+      const options = { feedStoreInfo: true };
       if (descriptor.path === '/foo') {
-        return { start: 1 };
+        options.start = 1;
       }
 
-      return {};
+      return options;
     });
 
     const messages = [];

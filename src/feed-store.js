@@ -4,16 +4,13 @@
 
 import { EventEmitter } from 'events';
 import assert from 'assert';
-import multi from 'multi-read-stream';
-import eos from 'end-of-stream';
 import hypertrie from 'hypertrie';
 import jsonBuffer from 'buffer-json-encoding';
-import through from 'through2';
-import pump from 'pump';
 
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
 import Locker from './locker';
+import Reader from './reader';
 
 const STORE_NAMESPACE = '@feedstore';
 
@@ -112,15 +109,13 @@ export class FeedStore extends EventEmitter {
 
     this.on('feed', (_, descriptor) => {
       this._readers.forEach(reader => {
-        reader.addFeed(descriptor);
+        reader.addFeedStream(descriptor);
       });
     });
 
     this.on('closed', () => {
       this._readers.forEach(reader => {
-        if (!reader.stream.destroyed) {
-          reader.stream.destroy(new Error('FeedStore closed'));
-        }
+        reader.destroy(new Error('FeedStore closed'));
       });
       this._readers.clear();
     });
@@ -390,40 +385,15 @@ export class FeedStore extends EventEmitter {
   /**
    * Creates a ReadableStream from the loaded feeds.
    *
-   * @param {Object} [options] Default options for each feed.createReadStream(options).
-   * @param {StreamCallback} [callback] Filter function to return options for each feed.createReadStream(). Returns `undefined` will ignore the feed.
+   * @param {StreamCallback|Object} [callback] Filter function to return options for each feed.createReadStream (returns `false` will ignore the feed) or default object options for each feed.createReadStream(options)
    * @returns {ReadableStream}
    */
-  createReadStream (options, callback = () => ({})) {
-    if (typeof options === 'function') {
-      callback = options;
-      options = {};
-    } else if (options === undefined) {
-      options = {};
-    }
-
-    const reader = {
-      stream: multi.obj(),
-      addFeed: descriptor => {
-        const keyStr = descriptor.key.toString('hex');
-
-        if (reader.feeds.includes(keyStr)) {
-          return;
-        }
-
-        let streamOptions = callback(descriptor);
-        if (streamOptions) {
-          streamOptions = Object.assign({}, options, typeof streamOptions === 'object' ? streamOptions : {});
-          reader.stream.add(this._createFeedStream(descriptor, streamOptions));
-          reader.feeds.push(keyStr);
-        }
-      },
-      feeds: []
-    };
+  createReadStream (callback = () => true) {
+    const reader = new Reader(callback);
 
     this._readers.add(reader);
 
-    eos(reader.stream, () => {
+    reader.onEnd(() => {
       this._readers.delete(reader);
     });
 
@@ -431,11 +401,9 @@ export class FeedStore extends EventEmitter {
       this
         .getDescriptors()
         .filter(descriptor => descriptor.opened)
-        .forEach(reader.addFeed);
+        .forEach(descriptor => reader.addFeedStream(descriptor));
     }).catch(err => {
-      if (!reader.stream.destroyed) {
-        reader.stream.destroy(err);
-      }
+      reader.destroy(err);
     });
 
     return reader.stream;
@@ -525,33 +493,6 @@ export class FeedStore extends EventEmitter {
     if (!oldData || (JSON.stringify(oldData.metadata) !== JSON.stringify(newData.metadata))) {
       await this._indexDB.put(key, newData);
     }
-  }
-
-  /**
-   * Creates a feed stream and stream the block data, seq, key and metadata.
-   *
-   * @param {FeedDescriptor} descriptor
-   * @param {Object} options
-   * @returns {ReadableStream}
-   */
-  _createFeedStream (descriptor, options) {
-    const { feed, path, key, metadata } = descriptor;
-
-    const { feedStoreInfo = false, ...feedStreamOptions } = options;
-
-    const stream = feed.createReadStream(feedStreamOptions);
-
-    if (!feedStoreInfo) {
-      return stream;
-    }
-
-    let seq = feedStreamOptions.start === undefined ? 0 : feedStreamOptions.start;
-
-    const addFeedStoreInfo = through.obj((chunk, _, next) => {
-      next(null, { data: chunk, seq: seq++, path, key, metadata });
-    });
-
-    return pump(stream, addFeedStoreInfo);
   }
 
   async _isOpen () {

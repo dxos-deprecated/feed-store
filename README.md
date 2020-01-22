@@ -142,7 +142,7 @@ Find an opened feed using a filter callback.
 
 - `descriptor: FeedDescriptor`
 
-#### `feedStore.createReadStream([options], [callback]) -> ReadableStream`
+#### `feedStore.createReadStream([callback|options]) -> ReadableStream`
 
 Creates a ReadableStream from the loaded feeds.
 
