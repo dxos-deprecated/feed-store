@@ -104,7 +104,7 @@ Close the hypertrie database and their feeds.
 Open multiple feeds using a function to filter what feeds you want to load from the database.
 
 ```javascript
-const feeds = await feedStore.loadFeeds(descriptor => descriptor.metadata.tag === 'foo')
+const feeds = await feedStore.openFeeds(descriptor => descriptor.metadata.tag === 'foo')
 ```
 
 #### `feedStore.ready() -> Promise`
