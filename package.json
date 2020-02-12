@@ -65,7 +65,7 @@
     "jest": "^24.5.0",
     "random-access-memory": "^3.1.1",
     "semistandard": "^14.2.0",
-    "tempy": "^0.3.0",
+    "tempy": "^0.4.0",
     "wait-for-expect": "^3.0.1"
   },
   "publishConfig": {
