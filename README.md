@@ -153,7 +153,7 @@ Creates a ReadableStream from the loaded feeds.
     - `key: Buffer`: Key of the read feed.
     - `path: String`: FeedStore path of the read feed.
     - `metadata: Object`: FeedStore metadata of the read feed.
-- `callback: descriptor => (Object|undefined)`: Filter function to return options for each feed.createReadStream(). Returns `undefined` will ignore the feed. Optional.
+- `callback: descriptor => Promise<(Object|undefined)>`: Filter function to return options for each feed.createReadStream(). Returns `undefined` will ignore the feed. Optional.
 - `descriptor: FeedDescriptor`
 
 Usage:
@@ -169,7 +169,7 @@ const stream = feedStore.createReadStream({ live: true }, ({ metadata }) => {
 })
 
 // Live streaming, from feeds tag === 'foo'
-const stream = feedStore.createReadStream({ metadata }) => {
+const stream = feedStore.createReadStream(({ metadata }) => {
   if (metadata.tag === 'foo') {
     return { live: true, start: 10 } // Start reading from index 10.
   }

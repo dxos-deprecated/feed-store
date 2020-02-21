@@ -57,14 +57,14 @@ export default class Reader {
    *
    * @param {FeedDescriptor} descriptor
    */
-  addFeedStream (descriptor) {
+  async addFeedStream (descriptor) {
     const { feed, path, key, metadata } = descriptor;
 
     if (!feed || this._feeds.has(feed)) {
       return;
     }
 
-    let streamOptions = this._filter(descriptor);
+    let streamOptions = await this._filter(descriptor);
     if (!streamOptions) {
       return;
     }

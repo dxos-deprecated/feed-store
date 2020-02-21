@@ -109,7 +109,7 @@ export class FeedStore extends EventEmitter {
 
     this.on('feed', (_, descriptor) => {
       this._readers.forEach(reader => {
-        reader.addFeedStream(descriptor);
+        reader.addFeedStream(descriptor).catch(() => {});
       });
     });
 
@@ -397,14 +397,16 @@ export class FeedStore extends EventEmitter {
       this._readers.delete(reader);
     });
 
-    this._isOpen().then(() => {
-      this
+    this
+      ._isOpen()
+      .then(() => Promise.all(this
         .getDescriptors()
         .filter(descriptor => descriptor.opened)
-        .forEach(descriptor => reader.addFeedStream(descriptor));
-    }).catch(err => {
-      reader.destroy(err);
-    });
+        .map(descriptor => reader.addFeedStream(descriptor))
+      ))
+      .catch(err => {
+        reader.destroy(err);
+      });
 
     return reader.stream;
   }
