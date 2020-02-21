@@ -44,7 +44,7 @@
     "multi-read-stream": "^2.0.0",
     "mutexify": "^1.2.0",
     "p-timeout": "^3.2.0",
-    "pify": "^4.0.1",
+    "pify": "^5.0.0",
     "pump": "^3.0.0",
     "random-access-file": "^2.1.0",
     "source-map-support": "^0.5.12",
@@ -65,7 +65,7 @@
     "jest": "^24.5.0",
     "random-access-memory": "^3.1.1",
     "semistandard": "^14.2.0",
-    "tempy": "^0.3.0",
+    "tempy": "^0.4.0",
     "wait-for-expect": "^3.0.1"
   },
   "publishConfig": {
