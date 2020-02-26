@@ -109,7 +109,9 @@ export class FeedStore extends EventEmitter {
 
     this.on('feed', (_, descriptor) => {
       this._readers.forEach(reader => {
-        reader.addFeedStream(descriptor).catch(() => {});
+        reader.addFeedStream(descriptor).catch(err => {
+          reader.destroy(err);
+        });
       });
     });
 

@@ -481,4 +481,17 @@ describe('FeedStore', () => {
 
     await feedStore.close();
   });
+
+  test('createReadStream should destroy if filter throws an error', async () => {
+    const feedStore = await FeedStore.create(ram);
+    await feedStore.openFeed('/test');
+
+    const stream = feedStore.createReadStream(async () => {
+      throw new Error('filter error');
+    });
+    await new Promise(resolve => eos(stream, err => {
+      expect(err.message).toBe('filter error');
+      resolve();
+    }));
+  });
 });

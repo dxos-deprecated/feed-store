@@ -47,9 +47,11 @@ export default class Reader {
    * @param {Error} [err] Optional error object.
    */
   destroy (err) {
-    if (!this._stream.destroyed) {
-      this._stream.destroy(err);
-    }
+    process.nextTick(() => {
+      if (!this._stream.destroyed) {
+        this._stream.destroy(err);
+      }
+    });
   }
 
   /**
@@ -60,7 +62,7 @@ export default class Reader {
   async addFeedStream (descriptor) {
     const { feed, path, key, metadata } = descriptor;
 
-    if (!feed || this._feeds.has(feed)) {
+    if (!feed || this._feeds.has(feed) || this._stream.destroyed) {
       return;
     }
 
