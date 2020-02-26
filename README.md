@@ -130,6 +130,10 @@ A `FeedDescriptor` provides the next information:
 
 Returns a list of descriptors.
 
+#### `feedStore.getDescriptorByDiscoveryKey(discoveryKey) -> FeedDescriptor`
+
+Fast access to get a descriptor.
+
 #### `feedStore.getOpenFeeds([descriptor => Boolean]) -> Hypercore[]`
 
 Returns a list of opened hypercore feeds, with optional filter.

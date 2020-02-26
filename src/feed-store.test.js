@@ -116,6 +116,7 @@ describe('FeedStore', () => {
 
   test('Descriptors', async () => {
     expect(feedStore.getDescriptors().map(fd => fd.path)).toEqual(['/books', '/users', '/groups']);
+    expect(feedStore.getDescriptorByDiscoveryKey(booksFeed.discoveryKey).path).toEqual('/books');
   });
 
   test('Feeds', async () => {

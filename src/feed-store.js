@@ -6,6 +6,7 @@ import { EventEmitter } from 'events';
 import assert from 'assert';
 import hypertrie from 'hypertrie';
 import jsonBuffer from 'buffer-json-encoding';
+import defaultHypercore from 'hypercore';
 
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
@@ -83,8 +84,8 @@ export class FeedStore extends EventEmitter {
       database = (...args) => hypertrie(...args),
       feedOptions = {},
       codecs = {},
-      timeout,
-      hypercore
+      hypercore = defaultHypercore,
+      timeout
     } = options;
 
     this._database = database;
@@ -201,6 +202,16 @@ export class FeedStore extends EventEmitter {
    */
   getDescriptors () {
     return Array.from(this._descriptors.values());
+  }
+
+  /**
+   * Fast access to a descriptor
+   *
+   * @param {Buffer} discoverKey
+   * @returns {FeedDescriptor|undefined}
+   */
+  getDescriptorByDiscoveryKey (discoverKey) {
+    return this._descriptors.get(discoverKey.toString('hex'));
   }
 
   /**
