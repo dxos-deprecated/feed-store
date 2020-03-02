@@ -47,11 +47,7 @@ export default class Reader {
    * @param {Error} [err] Optional error object.
    */
   destroy (err) {
-    process.nextTick(() => {
-      if (!this._stream.destroyed) {
-        this._stream.destroy(err);
-      }
-    });
+    this._stream.destroy(err);
   }
 
   /**
