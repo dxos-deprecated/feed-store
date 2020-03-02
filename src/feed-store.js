@@ -115,13 +115,6 @@ export class FeedStore extends EventEmitter {
         });
       });
     });
-
-    this.on('closed', () => {
-      this._readers.forEach(reader => {
-        reader.destroy(new Error('FeedStore closed'));
-      });
-      this._readers.clear();
-    });
   }
 
   /**
@@ -375,6 +368,10 @@ export class FeedStore extends EventEmitter {
     }
 
     try {
+      this._readers.forEach(reader => {
+        reader.destroy(new Error('FeedStore closed'));
+      });
+
       await Promise.all(this
         .getDescriptors()
         .map(descriptor => descriptor.close())
