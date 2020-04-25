@@ -316,7 +316,7 @@ export class FeedStore extends EventEmitter {
    *
    * @returns {Promise<Promise[]>}
    */
-  async deleteAll() {
+  async deleteAll () {
     return Promise.all(this.getDescriptors().map(({ path }) => this.deleteDescriptor(path)));
   }
 
