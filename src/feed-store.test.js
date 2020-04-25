@@ -495,4 +495,10 @@ describe('FeedStore', () => {
       resolve();
     }));
   });
+
+  test('Delete all', async () => {
+    expect(feedStore.getDescriptors().length).toBe(2);
+    await feedStore.deleteAll();
+    expect(feedStore.getDescriptors().length).toBe(0);
+  });
 });
