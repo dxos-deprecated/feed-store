@@ -498,7 +498,7 @@ describe('FeedStore', () => {
 
   test('Delete all', async () => {
     expect(feedStore.getDescriptors().length).toBe(2);
-    await feedStore.deleteAll();
+    await feedStore.deleteAllDescriptors();
     expect(feedStore.getDescriptors().length).toBe(0);
   });
 });
