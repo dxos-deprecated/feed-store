@@ -310,6 +310,17 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
+   * Remove all descriptors from the indexDB.
+   *
+   * NOTE: This operation would not close the feeds.
+   *
+   * @returns {Promise<Promise[]>}
+   */
+  async deleteAllDescriptors () {
+    return Promise.all(this.getDescriptors().map(({ path }) => this.deleteDescriptor(path)));
+  }
+
+  /**
    * Remove a descriptor from the indexDB by the path.
    *
    * NOTE: This operation would not close the feed.
