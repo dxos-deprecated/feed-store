@@ -39,7 +39,7 @@
     "debug": "^4.1.1",
     "end-of-stream": "^1.4.4",
     "hypercore": "^7.7.1",
-    "hypercore-crypto": "^1.0.0",
+    "hypercore-crypto": "^2.0.1",
     "hypertrie": "^3.8.0",
     "multi-read-stream": "^2.0.0",
     "mutexify": "^1.2.0",
