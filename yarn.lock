@@ -2663,6 +2663,15 @@ hypercore-crypto@^1.0.0:
     sodium-universal "^2.0.0"
     uint64be "^2.0.2"
 
+hypercore-crypto@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/hypercore-crypto/-/hypercore-crypto-2.1.0.tgz#8270002eb12b6b1ee11a59f6382a677179ba1323"
+  integrity sha512-zFwn1vBLUTABZoy9pYJBXYVHRuKSGO5qj1K2rLnEou8zuI9MG73e9hi31PsH4r0oTKMYnhricknTcon+xhW1EA==
+  dependencies:
+    sodium-javascript "^0.5.6"
+    sodium-native "^3.1.1"
+    uint64be "^3.0.0"
+
 hypercore-protocol@^6.5.0:
   version "6.12.0"
   resolved "https://registry.yarnpkg.com/hypercore-protocol/-/hypercore-protocol-6.12.0.tgz#0fafa7c047a7e4c35b2d77639e2489f60d7b1a0d"
@@ -4003,6 +4012,11 @@ node-gyp-build@^4.1.0:
   resolved "https://registry.yarnpkg.com/node-gyp-build/-/node-gyp-build-4.2.0.tgz#2c2b05f461f4178641a6ce2d7159f04094e9376d"
   integrity sha512-4oiumOLhCDU9Rronz8PZ5S4IvT39H5+JEv/hps9V8s7RSLhsac0TCP78ulnHXOo8X1wdpPiTayGlM1jr4IbnaQ==
 
+node-gyp-build@^4.2.0:
+  version "4.2.2"
+  resolved "https://registry.yarnpkg.com/node-gyp-build/-/node-gyp-build-4.2.2.tgz#3f44b65adaafd42fb6c3d81afd630e45c847eb66"
+  integrity sha512-Lqh7mrByWCM8Cf9UPqpeoVBBo5Ugx+RKu885GAzmLBVYjeywScxHXPGLa4JfYNZmcNGwzR0Glu5/9GaQZMFqyA==
+
 node-int64@^0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/node-int64/-/node-int64-0.4.0.tgz#87a9065cdb355d3182d8f94ce11188b825c68a3b"
@@ -5120,6 +5134,16 @@ snapdragon@^0.8.1:
     source-map-resolve "^0.5.0"
     use "^3.1.0"
 
+sodium-javascript@^0.5.6:
+  version "0.5.6"
+  resolved "https://registry.yarnpkg.com/sodium-javascript/-/sodium-javascript-0.5.6.tgz#748680f9bf0e33433d78660543afaeeec28ea199"
+  integrity sha512-Uk+JpqHEbzsEmiMxwL7TB/ndhMEpc52KdReYXXSIX2oRFPaI7ZDlDImF8KbkFWbYl9BJRtc82AZ/kNf4/0n9KA==
+  dependencies:
+    blake2b "^2.1.1"
+    nanoassert "^1.0.0"
+    siphash24 "^1.0.1"
+    xsalsa20 "^1.0.0"
+
 sodium-javascript@~0.5.0:
   version "0.5.5"
   resolved "https://registry.yarnpkg.com/sodium-javascript/-/sodium-javascript-0.5.5.tgz#40b7b530390931f45164173582dca51d4e37e84d"
@@ -5138,6 +5162,14 @@ sodium-native@^2.0.0:
     ini "^1.3.5"
     nan "^2.14.0"
     node-gyp-build "^4.1.0"
+
+sodium-native@^3.1.1:
+  version "3.1.1"
+  resolved "https://registry.yarnpkg.com/sodium-native/-/sodium-native-3.1.1.tgz#268eb00cd438b21c7dac20cb5b50819ad2813ec3"
+  integrity sha512-XA85yUIW28Oeba0knYdLOobNEI4ACpyayjaG1eOwazcCtcIuB5xViPwV2bb3bc2ppUcX+dLTqxxj7cQBZNEpXw==
+  dependencies:
+    ini "^1.3.5"
+    node-gyp-build "^4.2.0"
 
 sodium-universal@^2.0.0:
   version "2.0.0"
@@ -5604,6 +5636,11 @@ uint64be@^2.0.1, uint64be@^2.0.2:
   integrity sha512-9QqdvpGQTXgxthP+lY4e/gIBy+RuqcBaC6JVwT5I3bDLgT/btL6twZMR0pI3/Fgah9G/pdwzIprE5gL6v9UvyQ==
   dependencies:
     buffer-alloc "^1.1.0"
+
+uint64be@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/uint64be/-/uint64be-3.0.0.tgz#2e9037689817b3714fb86034e05c25f5c3141604"
+  integrity sha512-mliiCSrsE29aNBI7O9W5gGv6WmA9kBR8PtTt6Apaxns076IRdYrrtFhXHEWMj5CSum3U7cv7/pi4xmi4XsIOqg==
 
 unicode-canonical-property-names-ecmascript@^1.0.4:
   version "1.0.4"
