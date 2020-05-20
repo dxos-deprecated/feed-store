@@ -155,7 +155,7 @@ describe('FeedStore', () => {
 
     await feedStore.close();
     expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(0);
-    expect(feedStore.opened).toBe(true);
+    expect(feedStore.opened).toBe(false);
     expect(feedStore.closed).toBe(true);
   });
 

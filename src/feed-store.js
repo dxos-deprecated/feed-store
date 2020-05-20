@@ -1,12 +1,12 @@
 //
 // Copyright 2019 DxOS.
 //
-
+import { EventEmitter } from 'events';
 import assert from 'assert';
 import hypertrie from 'hypertrie';
 import jsonBuffer from 'buffer-json-encoding';
 import defaultHypercore from 'hypercore';
-import { NanoresourcePromise } from 'nanoresource-promise/emitter';
+import nanoresource from 'nanoresource-promise';
 
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
@@ -36,7 +36,7 @@ const STORE_NAMESPACE = '@feedstore';
  *
  * @extends {EventEmitter}
  */
-export class FeedStore extends NanoresourcePromise {
+export class FeedStore extends EventEmitter {
   /**
    * Create and initialize a new FeedStore
    *
@@ -70,7 +70,7 @@ export class FeedStore extends NanoresourcePromise {
   constructor (storage, options = {}) {
     assert(storage, 'The storage is required.');
 
-    super({ reopen: true });
+    super();
 
     this._storage = storage;
 
@@ -98,6 +98,12 @@ export class FeedStore extends NanoresourcePromise {
 
     this._indexDB = null;
 
+    this._resource = nanoresource({
+      reopen: true,
+      open: this._open.bind(this),
+      close: this._close.bind(this)
+    });
+
     this.on('feed', (_, descriptor) => {
       this._readers.forEach(reader => {
         reader.addFeedStream(descriptor).catch(err => {
@@ -105,6 +111,22 @@ export class FeedStore extends NanoresourcePromise {
         });
       });
     });
+  }
+
+  get opened () {
+    return this._resource.opened && !this._resource.closed;
+  }
+
+  get closed () {
+    return this._resource.closed;
+  }
+
+  get opening () {
+    return this._resource.opening;
+  }
+
+  get closing () {
+    return this._resource.closing;
   }
 
   /**
@@ -115,12 +137,22 @@ export class FeedStore extends NanoresourcePromise {
   }
 
   /**
-   * Old initialize method keep it for backward compatibility
+   * @returns {Promise}
    */
-  initialize () {
-    return this.open();
+  open () {
+    return this._resource.open();
   }
 
+  /**
+   * @returns {Promise}
+   */
+  close () {
+    return this._resource.close();
+  }
+
+  /**
+   * @returns {Promise}
+   */
   async ready () {
     if (this.opened) {
       return;
@@ -213,7 +245,7 @@ export class FeedStore extends NanoresourcePromise {
 
     await this._isOpen();
 
-    if (!this.active()) {
+    if (!this._resource.active()) {
       throw new Error('FeedStore closed');
     }
 
@@ -236,10 +268,10 @@ export class FeedStore extends NanoresourcePromise {
 
       const feed = await descriptor.open();
 
-      this.inactive();
+      this._resource.inactive();
       return feed;
     } catch (err) {
-      this.inactive();
+      this._resource.inactive();
       throw err;
     }
   }
@@ -255,7 +287,7 @@ export class FeedStore extends NanoresourcePromise {
 
     await this._isOpen();
 
-    if (!this.active()) {
+    if (!this._resource.active()) {
       throw new Error('FeedStore closed');
     }
 
@@ -267,9 +299,9 @@ export class FeedStore extends NanoresourcePromise {
       }
 
       await descriptor.close();
-      this.inactive();
+      this._resource.inactive();
     } catch (err) {
-      this.inactive();
+      this._resource.inactive();
       throw err;
     }
   }
@@ -298,7 +330,7 @@ export class FeedStore extends NanoresourcePromise {
 
     await this._isOpen();
 
-    if (!this.active()) {
+    if (!this._resource.active()) {
       throw new Error('FeedStore closed');
     }
 
@@ -314,10 +346,10 @@ export class FeedStore extends NanoresourcePromise {
 
       this.emit('descriptor-remove', descriptor);
       await release();
-      this.inactive();
+      this._resource.inactive();
     } catch (err) {
       await release();
-      this.inactive();
+      this._resource.inactive();
       throw err;
     }
   }
@@ -481,15 +513,22 @@ export class FeedStore extends NanoresourcePromise {
   }
 
   async _isOpen () {
-    if ((!this.opening && !this.opened) || this.closing || this.closed) {
-      throw new Error('FeedStore closed');
-    }
-
     if (this.opened) {
       return;
     }
 
     // If is opening we wait to be ready.
-    return this.ready();
+    if (this.opening) {
+      return this.ready();
+    }
+
+    throw new Error('FeedStore closed');
+  }
+
+  /**
+   * Old initialize method keep it for backward compatibility
+   */
+  initialize () {
+    return this.open();
   }
 }
