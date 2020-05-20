@@ -105,9 +105,13 @@ describe('FeedStore', () => {
     const { feedStore } = await createDefault();
 
     await expect(feedStore.closeFeed('/foo')).rejects.toThrow(/Feed not found/);
+
     const foo = await feedStore.openFeed('/foo');
-    await feedStore.closeFeed('/foo');
     expect(foo.opened).toBeTruthy();
+    expect(foo.closed).toBeFalsy();
+
+    await feedStore.closeFeed('/foo');
+    expect(foo.closed).toBeTruthy();
   });
 
   test('Descriptors', async () => {
