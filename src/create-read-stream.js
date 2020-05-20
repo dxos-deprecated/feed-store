@@ -5,7 +5,7 @@ export default function createReadStream (feed, opts = {}) {
   var end = typeof opts.end === 'number' ? opts.end : -1;
   var live = !!opts.live;
   var snapshot = opts.snapshot !== false;
-  var batch = opts.batch || 1;
+  var batch = opts.batch || 100;
   var batchEnd = 0;
   var batchLimit = 0;
 
