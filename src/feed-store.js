@@ -481,8 +481,12 @@ export class FeedStore extends NanoresourcePromise {
   }
 
   async _isOpen () {
-    if (!this.opening && !this.opened) {
+    if ((!this.opening && !this.opened) || this.closing || this.closed) {
       throw new Error('FeedStore closed');
+    }
+
+    if (this.opened) {
+      return;
     }
 
     // If is opening we wait to be ready.
