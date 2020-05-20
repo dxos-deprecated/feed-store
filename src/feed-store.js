@@ -7,6 +7,7 @@ import hypertrie from 'hypertrie';
 import jsonBuffer from 'buffer-json-encoding';
 import defaultHypercore from 'hypercore';
 import nanoresource from 'nanoresource-promise';
+import pEvent from 'p-event';
 
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
@@ -158,9 +159,13 @@ export class FeedStore extends EventEmitter {
       return;
     }
 
-    return new Promise((resolve) => {
-      this.once('ready', resolve);
-    });
+    try {
+      await pEvent(this, 'opened', {
+        rejectionEvents: ['closed']
+      });
+    } catch (err) {
+      throw new Error('FeedStore closed');
+    }
   }
 
   /**
@@ -398,6 +403,9 @@ export class FeedStore extends EventEmitter {
       this._createDescriptor(path, options);
     });
 
+    this.emit('opened');
+
+    // backward compatibility
     this.emit('ready');
   }
 
@@ -513,16 +521,15 @@ export class FeedStore extends EventEmitter {
   }
 
   async _isOpen () {
+    if ((!this.opening && !this.opened) || this.closing || this.closed) {
+      throw new Error('FeedStore closed');
+    }
+
     if (this.opened) {
       return;
     }
 
-    // If is opening we wait to be ready.
-    if (this.opening) {
-      return this.ready();
-    }
-
-    throw new Error('FeedStore closed');
+    return this.ready();
   }
 
   /**
