@@ -42,14 +42,6 @@ describe('FeedStore', () => {
     await expect(FeedStore.create()).rejects.toThrow(/storage is required/);
   });
 
-  test('Should release the lock if there is an error on the initialization.', async () => {
-    const feedStore = new FeedStore(ram, { database: () => { throw new Error('error'); } });
-    await expect(feedStore.initialize()).rejects.toThrow(/error/);
-    const release = await feedStore._locker.lock();
-    expect(release).toBeDefined();
-    await release();
-  });
-
   test('Config default and valueEncoding utf-8', async () => {
     feedStore = await createDefault();
 
@@ -137,7 +129,6 @@ describe('FeedStore', () => {
     await feedStore.close();
     expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(0);
     expect(feedStore.opened).toBe(false);
-    await expect(feedStore.close()).rejects.toThrow(/closed/);
   });
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
