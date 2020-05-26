@@ -12,7 +12,9 @@ export default function createReadStream (feed, opts = {}) {
   var first = true;
   var range = feed.download({ start: start, end: end, linear: true });
 
-  return streamFrom.obj(read).on('end', cleanup).on('close', cleanup);
+  var stream = streamFrom.obj(read).on('end', cleanup).on('close', cleanup);
+
+  return stream;
 
   function read (size, cb) {
     if (!feed.opened) return open(size, cb);
@@ -56,7 +58,7 @@ export default function createReadStream (feed, opts = {}) {
 
       var lastIdx = result.length - 1;
       for (var i = 0; i < lastIdx; i++) {
-        this.push(result[i]);
+        stream.push(result[i]);
       }
       cb(null, result[lastIdx]);
     });
