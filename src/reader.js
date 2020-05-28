@@ -8,6 +8,8 @@ import pump from 'pump';
 import through from 'through2';
 import eos from 'end-of-stream';
 
+import createReadStream from './create-read-stream';
+
 const all = () => true;
 
 /**
@@ -73,7 +75,7 @@ export default class Reader {
 
     const { feedStoreInfo = false, ...feedStreamOptions } = streamOptions;
 
-    const stream = feed.createReadStream(feedStreamOptions);
+    const stream = createReadStream(feed, feedStreamOptions);
 
     eos(stream, () => {
       this._feeds.delete(feed);
