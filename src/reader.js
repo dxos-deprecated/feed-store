@@ -68,6 +68,14 @@ export default class Reader {
       return { descriptor, streamOptions };
     }));
 
+    // empty feedsToSync
+    if (this.synced) {
+      process.nextTick(() => {
+        this._stream.emit('synced', this._syncState);
+      });
+      return;
+    }
+
     validFeeds.filter(Boolean).forEach(({ descriptor, streamOptions }) => {
       this._addFeedStream(descriptor, streamOptions);
     });
