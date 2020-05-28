@@ -300,6 +300,8 @@ describe('FeedStore', () => {
   test('createReadStream', async () => {
     const feedStore = await FeedStore.create(ram);
 
+    const synced = jest.fn();
+
     const foo = await feedStore.openFeed('/foo');
     const bar = await feedStore.openFeed('/bar');
     await Promise.all([
@@ -308,6 +310,7 @@ describe('FeedStore', () => {
     ]);
 
     const stream = feedStore.createReadStream();
+    stream.on('synced', synced);
 
     const messages = [];
     stream.on('data', (chunk) => {
@@ -325,9 +328,13 @@ describe('FeedStore', () => {
 
     await Promise.all([liveStream1, liveStream2]);
 
+    expect(synced).toBeCalledTimes(3);
+
     async function testLiveStream (...args) {
       const liveMessages = [];
       const liveStream = feedStore.createReadStream(...args);
+      liveStream.on('synced', synced);
+
       liveStream.on('data', (chunk) => {
         liveMessages.push(chunk.toString('utf8'));
       });
@@ -339,6 +346,8 @@ describe('FeedStore', () => {
   });
 
   test('createReadStreamByFilter', async () => {
+    const synced = jest.fn();
+
     const feedStore = await FeedStore.create(ram);
 
     const foo = await feedStore.openFeed('/foo', { metadata: { topic: 'topic1' } });
@@ -354,6 +363,7 @@ describe('FeedStore', () => {
         return true;
       }
     });
+    stream.on('synced', synced);
 
     const liveStream = testLiveStream(({ metadata = {} }) => {
       if (metadata.topic === 'topic1') {
@@ -377,10 +387,12 @@ describe('FeedStore', () => {
 
     await liveStream;
 
+    expect(synced).toBeCalledTimes(2);
+
     async function testLiveStream (...args) {
       const liveMessages = [];
       const liveStream = feedStore.createReadStream(...args);
-
+      liveStream.on('synced', synced);
       liveStream.on('data', (chunk) => {
         liveMessages.push(chunk.toString('utf8'));
       });
@@ -420,7 +432,7 @@ describe('FeedStore', () => {
     });
 
     const messages = [];
-    stream.on('data', ({ sync, ...chunk }) => {
+    stream.on('data', (chunk) => {
       messages.push(chunk);
     });
 
@@ -442,7 +454,7 @@ describe('FeedStore', () => {
     async function testLiveStream (...args) {
       const liveMessages = [];
       const liveStream = feedStore.createReadStream(...args);
-      liveStream.on('data', ({ sync, ...chunk }) => {
+      liveStream.on('data', (chunk) => {
         liveMessages.push(chunk);
       });
       await wait(() => {

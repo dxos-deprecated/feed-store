@@ -376,11 +376,11 @@ export class FeedStore extends EventEmitter {
 
     this
       ._isOpen()
-      .then(() => Promise.all(this
-        .getDescriptors()
-        .filter(descriptor => descriptor.opened)
-        .map(descriptor => reader.addFeedStream(descriptor))
-      ))
+      .then(() => {
+        return reader.addInitialFeedStreams(this
+          .getDescriptors()
+          .filter(descriptor => descriptor.opened));
+      })
       .catch(err => {
         reader.destroy(err);
       });
