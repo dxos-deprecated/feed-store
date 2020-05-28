@@ -306,6 +306,7 @@ describe('FeedStore', () => {
     const bar = await feedStore.openFeed('/bar');
     await Promise.all([
       pify(foo.append.bind(foo))('foo1'),
+      pify(foo.append.bind(foo))('foo2'),
       pify(bar.append.bind(bar))('bar1')
     ]);
 
@@ -321,7 +322,7 @@ describe('FeedStore', () => {
     const liveStream2 = testLiveStream(() => ({ live: true }));
 
     await eos(stream);
-    expect(messages.sort()).toEqual(['bar1', 'foo1']);
+    expect(messages.sort()).toEqual(['bar1', 'foo1', 'foo2']);
 
     const quz = await feedStore.openFeed('/quz');
     await pify(quz.append.bind(quz))('quz1');
@@ -329,6 +330,10 @@ describe('FeedStore', () => {
     await Promise.all([liveStream1, liveStream2]);
 
     expect(synced).toBeCalledTimes(3);
+    expect(synced).toHaveBeenLastCalledWith({
+      [foo.key.toString('hex')]: 1,
+      [bar.key.toString('hex')]: 0
+    });
 
     async function testLiveStream (...args) {
       const liveMessages = [];
@@ -339,7 +344,7 @@ describe('FeedStore', () => {
         liveMessages.push(chunk.toString('utf8'));
       });
       await wait(() => {
-        expect(liveMessages.sort()).toEqual(['bar1', 'foo1', 'quz1']);
+        expect(liveMessages.sort()).toEqual(['bar1', 'foo1', 'foo2', 'quz1']);
       });
       liveStream.destroy();
     }

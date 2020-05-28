@@ -35,6 +35,7 @@ export default class Reader {
     this._stream = multi.obj({ autoDestroy: false });
     this._feeds = new Set();
     this._feedsToSync = new Set();
+    this._syncState = {};
   }
 
   /**
@@ -101,10 +102,11 @@ export default class Reader {
   _checkFeedSync (feed, len, seq) {
     if (this.synced) return;
     if (len === seq && this._feedsToSync.has(feed)) {
+      this._syncState[feed.key.toString('hex')] = seq;
       this._feedsToSync.delete(feed);
       if (this.synced) {
         process.nextTick(() => {
-          this._stream.emit('synced');
+          this._stream.emit('synced', this._syncState);
         });
       }
     }
@@ -140,11 +142,14 @@ export default class Reader {
 
     const len = feed.length === 0 ? 0 : feed.length - 1;
     let seq = feedStreamOptions.start === undefined ? 0 : feedStreamOptions.start;
+    let currentSeq = seq;
     const addFeedStoreInfo = through.obj((chunk, _, next) => {
-      this._checkFeedSync(feed, len, seq);
+      currentSeq = seq++;
+
+      this._checkFeedSync(feed, len, currentSeq);
 
       if (feedStoreInfo) {
-        next(null, { data: chunk, seq: seq++, path, key, metadata });
+        next(null, { data: chunk, seq: currentSeq, path, key, metadata });
       } else {
         next(null, chunk);
       }
