@@ -420,7 +420,7 @@ describe('FeedStore', () => {
     });
 
     const messages = [];
-    stream.on('data', (chunk) => {
+    stream.on('data', ({ sync, ...chunk }) => {
       messages.push(chunk);
     });
 
@@ -442,7 +442,7 @@ describe('FeedStore', () => {
     async function testLiveStream (...args) {
       const liveMessages = [];
       const liveStream = feedStore.createReadStream(...args);
-      liveStream.on('data', (chunk) => {
+      liveStream.on('data', ({ sync, ...chunk }) => {
         liveMessages.push(chunk);
       });
       await wait(() => {

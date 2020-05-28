@@ -87,10 +87,10 @@ export default class Reader {
       return;
     }
 
+    const len = feed.length;
     let seq = feedStreamOptions.start === undefined ? 0 : feedStreamOptions.start;
-
     const addFeedStoreInfo = through.obj((chunk, _, next) => {
-      next(null, { data: chunk, seq: seq++, path, key, metadata });
+      next(null, { data: chunk, seq: seq++, path, key, metadata, sync: seq === len });
     });
 
     this._stream.add(pump(stream, addFeedStoreInfo));
