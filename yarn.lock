@@ -2802,7 +2802,7 @@ inflight@^1.0.4:
     once "^1.3.0"
     wrappy "1"
 
-inherits@2, inherits@^2.0.1, inherits@^2.0.3, inherits@^2.0.4, inherits@~2.0.3:
+inherits@2, inherits@^2.0.1, inherits@^2.0.3, inherits@~2.0.3:
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/inherits/-/inherits-2.0.4.tgz#0fa2c64f932917c3433a0ded55363aae37416b7c"
   integrity sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==
@@ -3962,18 +3962,10 @@ nanomatch@^1.2.9:
     snapdragon "^0.8.1"
     to-regex "^3.0.1"
 
-nanoresource-promise@^2.0.0-beta.0:
-  version "2.0.0-beta.0"
-  resolved "https://registry.yarnpkg.com/nanoresource-promise/-/nanoresource-promise-2.0.0-beta.0.tgz#970c129c4b57178988847f32037c6c53de2defcd"
-  integrity sha512-9IQRXW3BChzNDfZiZjMPBurSRgTaicgmp+F9qdm6sEWNx2Oz+Yogyokz4dTPJHnpigIetaKs+Y9t1xMsJISGbA==
-  dependencies:
-    nanoresource "git+https://github.com/tinchoz49/nanoresource.git#tinchoz49/refactor-added-reopen-feature"
-
-"nanoresource@git+https://github.com/tinchoz49/nanoresource.git#tinchoz49/refactor-added-reopen-feature":
-  version "1.3.0"
-  resolved "git+https://github.com/tinchoz49/nanoresource.git#e3b3f2e577fdbdc04a218014066c28ea90ac81da"
-  dependencies:
-    inherits "^2.0.4"
+nanoresource-promise@^2.0.0-beta.2:
+  version "2.0.0-beta.2"
+  resolved "https://registry.yarnpkg.com/nanoresource-promise/-/nanoresource-promise-2.0.0-beta.2.tgz#7fae2fad9bb15f8a2aa39c539fd699e2b7238f1d"
+  integrity sha512-2ikLazdi0eGp7GqsgzD092MitFjMn2Iqw0bFE4zimZ0TqvCvvskrvQYBTF9JWo1c2bEvE3GuSOYWcSxvf0sEiw==
 
 napi-macros@^1.8.2:
   version "1.8.2"
