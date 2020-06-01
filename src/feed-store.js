@@ -366,26 +366,17 @@ export class FeedStore extends EventEmitter {
    * @returns {ReadableStream}
    */
   createReadStream (callback = () => true) {
-    const reader = new Reader(callback);
+    return this._createReadStream(callback);
+  }
 
-    this._readers.add(reader);
-
-    reader.onEnd(() => {
-      this._readers.delete(reader);
-    });
-
-    this
-      ._isOpen()
-      .then(() => {
-        return reader.addInitialFeedStreams(this
-          .getDescriptors()
-          .filter(descriptor => descriptor.opened));
-      })
-      .catch(err => {
-        reader.destroy(err);
-      });
-
-    return reader.stream;
+  /**
+   * Creates a ReadableStream from the loaded feeds and returns the messages in batch.
+   *
+   * @param {StreamCallback|Object} [callback] Filter function to return options for each feed.createReadStream (returns `false` will ignore the feed) or default object options for each feed.createReadStream(options)
+   * @returns {ReadableStream}
+   */
+  createBatchStream (callback = () => true) {
+    return this._createReadStream(callback, true);
   }
 
   /**
@@ -530,6 +521,29 @@ export class FeedStore extends EventEmitter {
     }
 
     return this.ready();
+  }
+
+  _createReadStream (callback, inBatch = false) {
+    const reader = new Reader(callback, inBatch);
+
+    this._readers.add(reader);
+
+    reader.onEnd(() => {
+      this._readers.delete(reader);
+    });
+
+    this
+      ._isOpen()
+      .then(() => {
+        return reader.addInitialFeedStreams(this
+          .getDescriptors()
+          .filter(descriptor => descriptor.opened));
+      })
+      .catch(err => {
+        reader.destroy(err);
+      });
+
+    return reader.stream;
   }
 
   /**

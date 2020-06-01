@@ -8,7 +8,7 @@ import pump from 'pump';
 import through from 'through2';
 import eos from 'end-of-stream';
 
-import createReadStream from './create-read-stream';
+import createBatchStream from './create-batch-stream';
 
 const all = () => true;
 
@@ -21,7 +21,7 @@ export default class Reader {
    *
    * @param {StreamCallback|Object} [callback] Filter function to return options for each feed.createReadStream (returns `false` will ignore the feed) or default object options for each feed.createReadStream(options)
    */
-  constructor (filter) {
+  constructor (filter, inBatch = false) {
     assert(typeof filter === 'function' || typeof filter === 'object');
 
     if (typeof filter === 'function') {
@@ -32,6 +32,7 @@ export default class Reader {
       this._options = filter;
     }
 
+    this._inBatch = inBatch;
     this._stream = multi.obj({ autoDestroy: false });
     this._feeds = new Set();
     this._feedsToSync = new Set();
@@ -64,21 +65,25 @@ export default class Reader {
     const validFeeds = await Promise.all(descriptors.map(async descriptor => {
       const streamOptions = await this._getFeedStreamOptions(descriptor);
       if (!streamOptions) return null;
-      this._feedsToSync.add(descriptor.feed);
+
+      // feeds to sync
+      if (descriptor.feed.length > 0) {
+        this._feedsToSync.add(descriptor.feed);
+      }
+
+      this._syncState[descriptor.key.toString('hex')] = 0;
+
       return { descriptor, streamOptions };
     }));
-
-    // empty feedsToSync
-    if (this.synced) {
-      process.nextTick(() => {
-        this._stream.emit('synced', this._syncState);
-      });
-      return;
-    }
 
     validFeeds.filter(Boolean).forEach(({ descriptor, streamOptions }) => {
       this._addFeedStream(descriptor, streamOptions);
     });
+
+    // empty feedsToSync
+    if (this.synced) {
+      this._stream.emit('synced', this._syncState);
+    }
   }
 
   /**
@@ -107,17 +112,15 @@ export default class Reader {
     });
   }
 
-  _checkFeedSync (feed, len, seq) {
+  _checkFeedSync (feed, seq, synced) {
     if (this.synced) return;
-    if (len === seq && this._feedsToSync.has(feed)) {
+    if (synced && this._feedsToSync.has(feed)) {
       this._syncState[feed.key.toString('hex')] = seq;
       this._feedsToSync.delete(feed);
-      if (this.synced) {
-        process.nextTick(() => {
-          this._stream.emit('synced', this._syncState);
-        });
-      }
+      return this.synced;
     }
+
+    return false;
   }
 
   async _getFeedStreamOptions (descriptor) {
@@ -136,34 +139,36 @@ export default class Reader {
   }
 
   _addFeedStream (descriptor, streamOptions) {
-    const { feed, path, key, metadata } = descriptor;
+    const { feed, path, metadata } = descriptor;
 
     streamOptions = Object.assign({}, this._options, typeof streamOptions === 'object' ? streamOptions : {});
 
-    const { feedStoreInfo = false, ...feedStreamOptions } = streamOptions;
-
-    const stream = createReadStream(feed, feedStreamOptions);
+    const stream = createBatchStream(feed, { metadata: { path, metadata }, ...streamOptions });
 
     eos(stream, () => {
       this._feeds.delete(feed);
     });
 
-    const len = feed.length === 0 ? 0 : feed.length - 1;
-    let seq = feedStreamOptions.start === undefined ? 0 : feedStreamOptions.start;
-    let currentSeq = seq;
-    const addFeedStoreInfo = through.obj((chunk, _, next) => {
-      currentSeq = seq++;
+    const transform = through.obj((messages, _, next) => {
+      const last = messages[messages.length - 1];
+      const synced = this._checkFeedSync(feed, last.seq, last.synced);
 
-      this._checkFeedSync(feed, len, currentSeq);
-
-      if (feedStoreInfo) {
-        next(null, { data: chunk, seq: currentSeq, path, key, metadata });
+      if (this._inBatch) {
+        transform.push(messages);
       } else {
-        next(null, chunk);
+        for (const message of messages) {
+          transform.push(message);
+        }
       }
+
+      if (synced) {
+        this._stream.emit('synced', this._syncState);
+      }
+
+      next();
     });
 
-    this._stream.add(pump(stream, addFeedStoreInfo));
+    this._stream.add(pump(stream, transform));
     this._feeds.add(feed);
   }
 }
