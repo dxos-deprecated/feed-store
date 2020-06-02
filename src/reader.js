@@ -117,10 +117,10 @@ export default class Reader {
     if (sync && this._feedsToSync.has(feed)) {
       this._syncState[feed.key.toString('hex')] = seq;
       this._feedsToSync.delete(feed);
-      return this.sync;
+      if (this.sync) {
+        process.nextTick(() => this._stream.emit('sync', this._syncState));
+      }
     }
-
-    return false;
   }
 
   async _getFeedStreamOptions (descriptor) {
@@ -152,9 +152,6 @@ export default class Reader {
     });
 
     const transform = through.obj((messages, _, next) => {
-      const last = messages[messages.length - 1];
-      const sync = this._checkFeedSync(feed, last.seq, last.sync);
-
       if (this._inBatch) {
         transform.push(messages);
       } else {
@@ -163,9 +160,8 @@ export default class Reader {
         }
       }
 
-      if (sync) {
-        this._stream.emit('sync', this._syncState);
-      }
+      const last = messages[messages.length - 1];
+      this._checkFeedSync(feed, last.seq, last.sync);
 
       next();
     });
