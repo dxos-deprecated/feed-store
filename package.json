@@ -20,6 +20,7 @@
   "scripts": {
     "build": "npm run clean && npm run build:babel",
     "build:babel": "babel ./src --out-dir ./dist --ignore \"**/*.test.js\" --source-maps",
+    "benchmark": "npm run build && node benchmark.js",
     "clean": "del-cli dist",
     "coverage": "npm test -- --coverage",
     "coveralls": "npm run coverage && cat ./coverage/lcov.info | coveralls",
@@ -35,6 +36,7 @@
     "testEnvironment": "node"
   },
   "dependencies": {
+    "@dxos/benchmark-suite": "^1.0.0-beta.0",
     "buffer-json-encoding": "^1.0.2",
     "debug": "^4.1.1",
     "end-of-stream": "^1.4.4",
