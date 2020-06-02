@@ -151,14 +151,19 @@ Find an opened feed using a filter callback.
 Creates a ReadableStream from the loaded feeds.
 
 - `options: Object`: Default options for each feed.createReadStream(options). Optional.
-  - `feedStoreInfo: Boolean`: Enables streaming objects with additional feed information:
-    - `data: Buffer`: The original chunk of the block data.
-    - `seq: Number`: Sequence number of the read block.
-    - `key: Buffer`: Key of the read feed.
-    - `path: String`: FeedStore path of the read feed.
-    - `metadata: Object`: FeedStore metadata of the read feed.
+  - `batch: Number`: Defines the batch number of blocks to read in each iteration. Default: 100.
+  - `live: Boolean`: Defines the stream as a live stream. Will wait for new incoming data. Default: false.
 - `callback: descriptor => Promise<(Object|undefined)>`: Filter function to return options for each feed.createReadStream(). Returns `undefined` will ignore the feed. Optional.
 - `descriptor: FeedDescriptor`
+
+The data returned will be an object with:
+
+- `data: Buffer`: The original chunk of the block data.
+- `seq: Number`: Sequence number of the read block.
+- `key: Buffer`: Key of the read feed.
+- `path: String`: FeedStore path of the read feed.
+- `metadata: Object`: FeedStore metadata of the read feed.
+- `sync: Boolean`: It reports if the stream is in sync with the data.
 
 Usage:
 
@@ -178,13 +183,11 @@ const stream = feedStore.createReadStream(({ metadata }) => {
     return { live: true, start: 10 } // Start reading from index 10.
   }
 })
-
-// With additional information.
-const stream = feedStore.createReadStream({ feedStoreInfo: true })
-stream.on('data', data => {
-  console.log(data) // { data, seq, key, path, metadata }
-})
 ```
+
+#### `feedStore.createBatchStream([callback|options]) -> ReadableStream`
+
+Almost equal to `createReadStream` but the batch messages will be returned in a single array of messages.
 
 ### Events
 
