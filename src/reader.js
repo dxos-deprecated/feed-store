@@ -118,7 +118,7 @@ export default class Reader {
       this._syncState[feed.key.toString('hex')] = seq;
       this._feedsToSync.delete(feed);
       if (this.sync) {
-        process.nextTick(() => this._stream.emit('sync', this._syncState));
+        this._stream.emit('sync', this._syncState);
       }
     }
   }
