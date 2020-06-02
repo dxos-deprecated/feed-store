@@ -46,7 +46,7 @@ export default class Reader {
     return this._stream;
   }
 
-  get synced () {
+  get sync () {
     return this._feedsToSync.size === 0;
   }
 
@@ -81,8 +81,8 @@ export default class Reader {
     });
 
     // empty feedsToSync
-    if (this.synced) {
-      this._stream.emit('synced', this._syncState);
+    if (this.sync) {
+      this._stream.emit('sync', this._syncState);
     }
   }
 
@@ -112,12 +112,12 @@ export default class Reader {
     });
   }
 
-  _checkFeedSync (feed, seq, synced) {
-    if (this.synced) return;
-    if (synced && this._feedsToSync.has(feed)) {
+  _checkFeedSync (feed, seq, sync) {
+    if (this.sync) return;
+    if (sync && this._feedsToSync.has(feed)) {
       this._syncState[feed.key.toString('hex')] = seq;
       this._feedsToSync.delete(feed);
-      return this.synced;
+      return this.sync;
     }
 
     return false;
@@ -141,9 +141,11 @@ export default class Reader {
   _addFeedStream (descriptor, streamOptions) {
     const { feed, path, metadata } = descriptor;
 
-    streamOptions = Object.assign({}, this._options, typeof streamOptions === 'object' ? streamOptions : {});
+    streamOptions = Object.assign({
+      metadata: { path, metadata }
+    }, this._options, typeof streamOptions === 'object' ? streamOptions : {});
 
-    const stream = createBatchStream(feed, { metadata: { path, metadata }, ...streamOptions });
+    const stream = createBatchStream(feed, streamOptions);
 
     eos(stream, () => {
       this._feeds.delete(feed);
@@ -151,7 +153,7 @@ export default class Reader {
 
     const transform = through.obj((messages, _, next) => {
       const last = messages[messages.length - 1];
-      const synced = this._checkFeedSync(feed, last.seq, last.synced);
+      const sync = this._checkFeedSync(feed, last.seq, last.sync);
 
       if (this._inBatch) {
         transform.push(messages);
@@ -161,8 +163,8 @@ export default class Reader {
         }
       }
 
-      if (synced) {
-        this._stream.emit('synced', this._syncState);
+      if (sync) {
+        this._stream.emit('sync', this._syncState);
       }
 
       next();

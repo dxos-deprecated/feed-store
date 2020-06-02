@@ -85,11 +85,11 @@ export default function createBatchStream (feed, opts = {}) {
       key: feed.key,
       seq: seq++,
       data,
-      synced: (firstSyncEnd === false && feed.length === seq) || firstSyncEnd === 0 || firstSyncEnd === seq,
+      sync: (firstSyncEnd === false && feed.length === seq) || firstSyncEnd === 0 || firstSyncEnd === seq,
       ...metadata
     };
 
-    if (message.synced && firstSyncEnd !== false) {
+    if (message.sync && firstSyncEnd !== false) {
       firstSyncEnd = false;
     }
 

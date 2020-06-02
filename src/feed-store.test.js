@@ -337,18 +337,18 @@ describe('FeedStore', () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
     const [feed1, feed2, feed3] = await generateStreamData(feedStore, 0);
-    const onSynced = jest.fn();
+    const onSync = jest.fn();
     const messages = [];
     const stream = feedStore.createReadStream();
     stream.on('data', (msg) => {
       messages.push(msg);
     });
-    stream.on('synced', onSynced);
+    stream.on('sync', onSync);
     await new Promise(resolve => eos(stream, () => resolve()));
 
     expect(messages.length).toBe(0);
-    expect(onSynced).toHaveBeenCalledTimes(1);
-    expect(onSynced).toHaveBeenCalledWith({
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
       [feed1.key.toString('hex')]: 0,
       [feed2.key.toString('hex')]: 0,
       [feed3.key.toString('hex')]: 0
@@ -360,13 +360,13 @@ describe('FeedStore', () => {
 
     const [feed1, feed2, feed3] = await generateStreamData(feedStore);
 
-    const onSynced = jest.fn();
+    const onSync = jest.fn();
     const messages = [];
     const stream = feedStore.createReadStream();
     stream.on('data', (msg) => {
       messages.push(msg);
     });
-    stream.on('synced', onSynced);
+    stream.on('sync', onSync);
     await new Promise(resolve => eos(stream, () => resolve()));
 
     messages.sort(asc);
@@ -374,12 +374,12 @@ describe('FeedStore', () => {
     expect(messages.length).toBe(400);
 
     // sync test
-    const syncedMessages = messages.filter(m => m.synced);
-    expect(syncedMessages.length).toBe(2);
-    expect(syncedMessages[0].key).toEqual(feed1.key);
-    expect(syncedMessages[1].key).toEqual(feed2.key);
-    expect(onSynced).toHaveBeenCalledTimes(1);
-    expect(onSynced).toHaveBeenCalledWith({
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
       [feed1.key.toString('hex')]: 199,
       [feed2.key.toString('hex')]: 199,
       [feed3.key.toString('hex')]: 0
@@ -391,11 +391,11 @@ describe('FeedStore', () => {
 
     const [feed1, feed2, feed3] = await generateStreamData(feedStore);
 
-    const onSynced = jest.fn();
+    const onSync = jest.fn();
     const messages = [];
     const stream = feedStore.createReadStream(descriptor => !descriptor.key.equals(feed2.key));
     stream.on('data', (msg) => messages.push(msg));
-    stream.on('synced', onSynced);
+    stream.on('sync', onSync);
     await new Promise(resolve => eos(stream, () => resolve()));
 
     messages.sort(asc);
@@ -403,11 +403,11 @@ describe('FeedStore', () => {
     expect(messages.length).toBe(200);
 
     // sync test
-    const syncedMessages = messages.filter(m => m.synced);
-    expect(syncedMessages.length).toBe(1);
-    expect(syncedMessages[0].key).toEqual(feed1.key);
-    expect(onSynced).toHaveBeenCalledTimes(1);
-    expect(onSynced).toHaveBeenCalledWith({
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(1);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
       [feed1.key.toString('hex')]: 199,
       [feed3.key.toString('hex')]: 0
     });
@@ -418,11 +418,11 @@ describe('FeedStore', () => {
 
     const [feed1, feed2, feed3] = await generateStreamData(feedStore);
 
-    const onSynced = jest.fn();
+    const onSync = jest.fn();
     const messages = [];
     const stream = feedStore.createReadStream({ live: true });
     stream.on('data', (msg) => messages.push(msg));
-    stream.on('synced', onSynced);
+    stream.on('sync', onSync);
     for (let i = 0; i < 2000; i++) {
       await append(feed3, `feed3/message${i}`);
       await new Promise(resolve => setImmediate(resolve));
@@ -435,12 +435,12 @@ describe('FeedStore', () => {
     expect(messages.length).toBe(200 * 2 + 2000);
 
     // sync test
-    const syncedMessages = messages.filter(m => m.synced);
-    expect(syncedMessages.length).toBe(2002);
-    expect(syncedMessages[0].key).toEqual(feed1.key);
-    expect(syncedMessages[1].key).toEqual(feed2.key);
-    expect(onSynced).toHaveBeenCalledTimes(1);
-    expect(onSynced).toHaveBeenCalledWith({
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2002);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
       [feed1.key.toString('hex')]: 199,
       [feed2.key.toString('hex')]: 199,
       [feed3.key.toString('hex')]: 0
@@ -452,13 +452,13 @@ describe('FeedStore', () => {
 
     const [feed1, feed2, feed3] = await generateStreamData(feedStore);
 
-    const onSynced = jest.fn();
+    const onSync = jest.fn();
     const batches = [];
     const stream = feedStore.createBatchStream({ batch: 50 });
     stream.on('data', (msg) => {
       batches.push(msg);
     });
-    stream.on('synced', onSynced);
+    stream.on('sync', onSync);
     await new Promise(resolve => eos(stream, () => resolve()));
 
     expect(batches.length).toBe(400 / 50);
@@ -471,12 +471,12 @@ describe('FeedStore', () => {
     expect(messages.length).toBe(400);
 
     // sync test
-    const syncedMessages = messages.filter(m => m.synced);
-    expect(syncedMessages.length).toBe(2);
-    expect(syncedMessages[0].key).toEqual(feed1.key);
-    expect(syncedMessages[1].key).toEqual(feed2.key);
-    expect(onSynced).toHaveBeenCalledTimes(1);
-    expect(onSynced).toHaveBeenCalledWith({
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
       [feed1.key.toString('hex')]: 199,
       [feed2.key.toString('hex')]: 199,
       [feed3.key.toString('hex')]: 0
