@@ -20,7 +20,9 @@
   "scripts": {
     "build": "npm run clean && npm run build:babel",
     "build:babel": "babel ./src --out-dir ./dist --ignore \"**/*.test.js\" --source-maps",
-    "benchmark": "npm run build && node benchmark.js",
+    "benchmark": "npm run build && npm run benchmark:node && npm run benchmark:browser",
+    "benchmark:node": "del-cli .benchmark && node benchmark.js",
+    "benchmark:browser": "browser-runner benchmark.js --timeout 0",
     "clean": "del-cli dist",
     "coverage": "npm test -- --coverage",
     "coveralls": "npm run coverage && cat ./coverage/lcov.info | coveralls",
@@ -36,7 +38,6 @@
     "testEnvironment": "node"
   },
   "dependencies": {
-    "@dxos/benchmark-suite": "^1.0.0-beta.0",
     "buffer-json-encoding": "^1.0.2",
     "debug": "^4.1.1",
     "end-of-stream": "^1.4.4",
@@ -60,6 +61,9 @@
     "@babel/core": "^7.4.5",
     "@babel/plugin-proposal-export-default-from": "^7.5.2",
     "@babel/preset-env": "^7.4.5",
+    "@dxos/benchmark-suite": "^1.0.0-beta.1",
+    "@dxos/browser-runner": "^1.0.0-beta.8",
+    "@dxos/random-access-multi-storage": "^1.1.0-beta.3",
     "babel-eslint": "^10.0.2",
     "babel-jest": "^24.8.0",
     "babel-plugin-add-module-exports": "^1.0.2",
