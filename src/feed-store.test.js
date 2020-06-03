@@ -362,7 +362,7 @@ describe('FeedStore', () => {
 
     const onSync = jest.fn();
     const messages = [];
-    const stream = feedStore.createReadStream();
+    const stream = feedStore.createReadStream({ feedStoreInfo: true });
     stream.on('data', (msg) => {
       messages.push(msg);
     });
@@ -393,7 +393,7 @@ describe('FeedStore', () => {
 
     const onSync = jest.fn();
     const messages = [];
-    const stream = feedStore.createReadStream(descriptor => !descriptor.key.equals(feed2.key));
+    const stream = feedStore.createReadStream(descriptor => (!descriptor.key.equals(feed2.key) && { feedStoreInfo: true }));
     stream.on('data', (msg) => messages.push(msg));
     stream.on('sync', onSync);
     await new Promise(resolve => eos(stream, () => resolve()));
@@ -420,7 +420,7 @@ describe('FeedStore', () => {
 
     const onSync = jest.fn();
     const messages = [];
-    const stream = feedStore.createReadStream({ live: true });
+    const stream = feedStore.createReadStream({ live: true, feedStoreInfo: true });
     stream.on('data', (msg) => messages.push(msg));
     stream.on('sync', onSync);
     for (let i = 0; i < 2000; i++) {
@@ -454,7 +454,7 @@ describe('FeedStore', () => {
 
     const onSync = jest.fn();
     const batches = [];
-    const stream = feedStore.createBatchStream({ batch: 50 });
+    const stream = feedStore.createBatchStream({ batch: 50, feedStoreInfo: true });
     stream.on('data', (msg) => {
       batches.push(msg);
     });
