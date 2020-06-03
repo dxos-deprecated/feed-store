@@ -7,7 +7,6 @@ import tempy from 'tempy';
 import ram from 'random-access-memory';
 import hypercore from 'hypercore';
 import pify from 'pify';
-import wait from 'wait-for-expect';
 import eos from 'end-of-stream-promise';
 
 import { FeedStore } from './feed-store';
@@ -27,6 +26,14 @@ async function defaultFeeds (feedStore) {
     usersFeed: await feedStore.openFeed('/users'),
     groupsFeed: await feedStore.openFeed('/groups')
   };
+}
+
+function append (feed, message) {
+  return pify(feed.append.bind(feed))(message);
+}
+
+function head (feed) {
+  return pify(feed.head.bind(feed))();
 }
 
 describe('FeedStore', () => {
@@ -80,8 +87,8 @@ describe('FeedStore', () => {
     expect(booksFeedDescriptor).toHaveProperty('path', '/books');
     expect(booksFeedDescriptor.metadata).toHaveProperty('topic', 'books');
 
-    await pify(booksFeed.append.bind(booksFeed))('Foundation and Empire');
-    await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
+    await append(booksFeed, 'Foundation and Empire');
+    await expect(head(booksFeed)).resolves.toBe('Foundation and Empire');
 
     // It should return the same opened instance.
     await expect(feedStore.openFeed('/books')).resolves.toBe(booksFeed);
@@ -97,8 +104,8 @@ describe('FeedStore', () => {
     const [usersFeed, feed2] = await Promise.all([feedStore.openFeed('/users'), feedStore.openFeed('/users')]);
     expect(usersFeed).toBe(feed2);
 
-    await pify(usersFeed.append.bind(usersFeed))('alice');
-    await expect(pify(usersFeed.head.bind(usersFeed))()).resolves.toBe('alice');
+    await append(usersFeed, 'alice');
+    await expect(head(usersFeed)).resolves.toBe('alice');
   });
 
   test('Create and close a feed', async () => {
@@ -163,8 +170,8 @@ describe('FeedStore', () => {
     const { feedStore } = await createDefault();
     let { booksFeed, usersFeed } = await defaultFeeds(feedStore);
 
-    await pify(booksFeed.append.bind(booksFeed))('Foundation and Empire');
-    await pify(usersFeed.append.bind(usersFeed))('alice');
+    await append(booksFeed, 'Foundation and Empire');
+    await append(usersFeed, 'alice');
 
     await feedStore.close();
     await feedStore.open();
@@ -197,8 +204,8 @@ describe('FeedStore', () => {
 
     const feed = await feedStore.openFeed('/test');
     expect(feed).toBeInstanceOf(hypercore);
-    await pify(feed.append.bind(feed))('test');
-    await expect(pify(feed.head.bind(feed))()).resolves.toBeInstanceOf(Buffer);
+    await append(feed, 'test');
+    await expect(head(feed)).resolves.toBeInstanceOf(Buffer);
   });
 
   test('Default codec: json + custom codecs', async () => {
@@ -232,14 +239,14 @@ describe('FeedStore', () => {
     {
       const feed = await feedStore.openFeed('/test');
       expect(feed).toBeInstanceOf(hypercore);
-      await pify(feed.append.bind(feed))('test');
-      await expect(pify(feed.head.bind(feed))()).resolves.toBe('test');
+      await append(feed, 'test');
+      await expect(head(feed)).resolves.toBe('test');
     }
     {
       const feed = await feedStore.openFeed('/a', { valueEncoding: 'codecA' });
       expect(feed).toBeInstanceOf(hypercore);
-      await pify(feed.append.bind(feed))({ msg: 'test' });
-      await expect(pify(feed.head.bind(feed))()).resolves.toEqual({ msg: 'test', encodedBy: 'codecA' });
+      await append(feed, { msg: 'test' });
+      await expect(head(feed)).resolves.toEqual({ msg: 'test', encodedBy: 'codecA' });
     }
   });
 
@@ -297,182 +304,183 @@ describe('FeedStore', () => {
     await release();
   });
 
-  test('createReadStream', async () => {
-    const feedStore = await FeedStore.create(ram);
-
-    const synced = jest.fn();
-
-    const foo = await feedStore.openFeed('/foo');
-    const bar = await feedStore.openFeed('/bar');
-    await Promise.all([
-      pify(foo.append.bind(foo))('foo1'),
-      pify(foo.append.bind(foo))('foo2'),
-      pify(bar.append.bind(bar))('bar1')
+  async function generateStreamData (feedStore, maxMessages = 200) {
+    const [feed1, feed2, feed3] = await Promise.all([
+      feedStore.openFeed('/feed1'),
+      feedStore.openFeed('/feed2'),
+      feedStore.openFeed('/feed3')
     ]);
 
-    const stream = feedStore.createReadStream();
-    stream.on('synced', synced);
-
     const messages = [];
-    stream.on('data', (chunk) => {
-      messages.push(chunk.toString('utf8'));
-    });
-
-    const liveStream1 = testLiveStream({ live: true });
-    const liveStream2 = testLiveStream(() => ({ live: true }));
-
-    await eos(stream);
-    expect(messages.sort()).toEqual(['bar1', 'foo1', 'foo2']);
-
-    const quz = await feedStore.openFeed('/quz');
-    await pify(quz.append.bind(quz))('quz1');
-
-    await Promise.all([liveStream1, liveStream2]);
-
-    expect(synced).toBeCalledTimes(3);
-    expect(synced).toHaveBeenLastCalledWith({
-      [foo.key.toString('hex')]: 1,
-      [bar.key.toString('hex')]: 0
-    });
-
-    async function testLiveStream (...args) {
-      const liveMessages = [];
-      const liveStream = feedStore.createReadStream(...args);
-      liveStream.on('synced', synced);
-
-      liveStream.on('data', (chunk) => {
-        liveMessages.push(chunk.toString('utf8'));
-      });
-      await wait(() => {
-        expect(liveMessages.sort()).toEqual(['bar1', 'foo1', 'foo2', 'quz1']);
-      });
-      liveStream.destroy();
+    for (let i = 0; i < maxMessages; i++) {
+      messages.push(append(feed1, `feed1/message${i}`));
+      messages.push(append(feed2, `feed2/message${i}`));
     }
-  });
 
-  test('createReadStreamByFilter', async () => {
-    const synced = jest.fn();
+    await Promise.all(messages);
 
-    const feedStore = await FeedStore.create(ram);
+    return [feed1, feed2, feed3];
+  }
 
-    const foo = await feedStore.openFeed('/foo', { metadata: { topic: 'topic1' } });
-    const bar = await feedStore.openFeed('/bar');
-
-    await Promise.all([
-      pify(foo.append.bind(foo))('foo1'),
-      pify(bar.append.bind(bar))('bar1')
-    ]);
-
-    const stream = feedStore.createReadStream(({ metadata = {} }) => {
-      if (metadata.topic === 'topic1') {
-        return true;
-      }
-    });
-    stream.on('synced', synced);
-
-    const liveStream = testLiveStream(({ metadata = {} }) => {
-      if (metadata.topic === 'topic1') {
-        return { live: true };
-      }
-    });
-
-    const messages = [];
-    stream.on('data', (chunk) => {
-      messages.push(chunk.toString('utf8'));
-    });
-
-    await eos(stream);
-    expect(messages.sort()).toEqual(['foo1']);
-
-    const baz = await feedStore.openFeed('/baz');
-    await pify(baz.append.bind(baz))('baz1');
-
-    const quz = await feedStore.openFeed('/quz', { metadata: { topic: 'topic1' } });
-    await pify(quz.append.bind(quz))('quz1');
-
-    await liveStream;
-
-    expect(synced).toBeCalledTimes(2);
-
-    async function testLiveStream (...args) {
-      const liveMessages = [];
-      const liveStream = feedStore.createReadStream(...args);
-      liveStream.on('synced', synced);
-      liveStream.on('data', (chunk) => {
-        liveMessages.push(chunk.toString('utf8'));
-      });
-
-      await wait(() => {
-        expect(liveMessages.sort()).toEqual(['foo1', 'quz1']);
-      });
-      liveStream.destroy();
+  function asc (a, b) {
+    if (a.data > b.data) {
+      return 1;
     }
-  });
+    if (a.data < b.data) {
+      return -1;
+    }
+    // a must be equal to b
+    return 0;
+  }
 
-  test('createReadStream with feedStoreInfo', async () => {
-    const sort = (a, b) => {
-      if (a.data > b.data) return 1;
-      if (a.data < b.data) return -1;
-      return 0;
-    };
-
+  test('createReadStream with empty messages', async () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    const foo = await feedStore.openFeed('/foo');
-    const bar = await feedStore.openFeed('/bar');
-    await Promise.all([
-      pify(foo.append.bind(foo))('foo1'),
-      pify(foo.append.bind(foo))('foo2'),
-      pify(bar.append.bind(bar))('bar1'),
-      pify(bar.append.bind(bar))('bar2')
-    ]);
-
-    const stream = feedStore.createReadStream(descriptor => {
-      const options = { feedStoreInfo: true };
-      if (descriptor.path === '/foo') {
-        options.start = 1;
-      }
-
-      return options;
-    });
-
+    const [feed1, feed2, feed3] = await generateStreamData(feedStore, 0);
+    const onSync = jest.fn();
     const messages = [];
-    stream.on('data', (chunk) => {
-      messages.push(chunk);
+    const stream = feedStore.createReadStream();
+    stream.on('data', (msg) => {
+      messages.push(msg);
     });
+    stream.on('sync', onSync);
+    await new Promise(resolve => eos(stream, () => resolve()));
 
-    const liveStream1 = testLiveStream({ live: true, feedStoreInfo: true });
+    expect(messages.length).toBe(0);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 0,
+      [feed2.key.toString('hex')]: 0,
+      [feed3.key.toString('hex')]: 0
+    });
+  });
 
-    await eos(stream);
+  test('createReadStream with 200 messages', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    expect(messages.sort(sort)).toEqual([
-      { data: 'bar1', seq: 0, path: '/bar', key: bar.key, metadata: undefined },
-      { data: 'bar2', seq: 1, path: '/bar', key: bar.key, metadata: undefined },
-      { data: 'foo2', seq: 1, path: '/foo', key: foo.key, metadata: undefined }
-    ]);
+    const [feed1, feed2, feed3] = await generateStreamData(feedStore);
 
-    const quz = await feedStore.openFeed('/quz');
-    await pify(quz.append.bind(quz))('quz1');
+    const onSync = jest.fn();
+    const messages = [];
+    const stream = feedStore.createReadStream({ feedStoreInfo: true });
+    stream.on('data', (msg) => {
+      messages.push(msg);
+    });
+    stream.on('sync', onSync);
+    await new Promise(resolve => eos(stream, () => resolve()));
 
-    await liveStream1;
+    messages.sort(asc);
 
-    async function testLiveStream (...args) {
-      const liveMessages = [];
-      const liveStream = feedStore.createReadStream(...args);
-      liveStream.on('data', (chunk) => {
-        liveMessages.push(chunk);
-      });
-      await wait(() => {
-        expect(liveMessages.sort(sort)).toEqual([
-          { data: 'bar1', seq: 0, path: '/bar', key: bar.key, metadata: undefined },
-          { data: 'bar2', seq: 1, path: '/bar', key: bar.key, metadata: undefined },
-          { data: 'foo1', seq: 0, path: '/foo', key: foo.key, metadata: undefined },
-          { data: 'foo2', seq: 1, path: '/foo', key: foo.key, metadata: undefined },
-          { data: 'quz1', seq: 0, path: '/quz', key: quz.key, metadata: undefined }
-        ]);
-      });
-      liveStream.destroy();
+    expect(messages.length).toBe(400);
+
+    // sync test
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 199,
+      [feed2.key.toString('hex')]: 199,
+      [feed3.key.toString('hex')]: 0
+    });
+  });
+
+  test('createReadStream filter [feed2=false]', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+
+    const [feed1, feed2, feed3] = await generateStreamData(feedStore);
+
+    const onSync = jest.fn();
+    const messages = [];
+    const stream = feedStore.createReadStream(descriptor => (!descriptor.key.equals(feed2.key) && { feedStoreInfo: true }));
+    stream.on('data', (msg) => messages.push(msg));
+    stream.on('sync', onSync);
+    await new Promise(resolve => eos(stream, () => resolve()));
+
+    messages.sort(asc);
+
+    expect(messages.length).toBe(200);
+
+    // sync test
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(1);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 199,
+      [feed3.key.toString('hex')]: 0
+    });
+  });
+
+  test('createReadStream [live=true]', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+
+    const [feed1, feed2, feed3] = await generateStreamData(feedStore);
+
+    const onSync = jest.fn();
+    const messages = [];
+    const stream = feedStore.createReadStream({ live: true, feedStoreInfo: true });
+    stream.on('data', (msg) => messages.push(msg));
+    stream.on('sync', onSync);
+    for (let i = 0; i < 2000; i++) {
+      await append(feed3, `feed3/message${i}`);
+      await new Promise(resolve => setImmediate(resolve));
     }
+    process.nextTick(() => stream.destroy());
+    await new Promise(resolve => eos(stream, () => resolve()));
+
+    messages.sort(asc);
+
+    expect(messages.length).toBe(200 * 2 + 2000);
+
+    // sync test
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2002);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 199,
+      [feed2.key.toString('hex')]: 199,
+      [feed3.key.toString('hex')]: 0
+    });
+  });
+
+  test('createBatchStream with 200 messages and [batch=50]', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+
+    const [feed1, feed2, feed3] = await generateStreamData(feedStore);
+
+    const onSync = jest.fn();
+    const batches = [];
+    const stream = feedStore.createBatchStream({ batch: 50, feedStoreInfo: true });
+    stream.on('data', (msg) => {
+      batches.push(msg);
+    });
+    stream.on('sync', onSync);
+    await new Promise(resolve => eos(stream, () => resolve()));
+
+    expect(batches.length).toBe(400 / 50);
+
+    // flat data
+    const messages = batches.reduce((prev, curr) => [...prev, ...curr], []);
+
+    messages.sort(asc);
+
+    expect(messages.length).toBe(400);
+
+    // sync test
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 199,
+      [feed2.key.toString('hex')]: 199,
+      [feed3.key.toString('hex')]: 0
+    });
   });
 
   test('append event', async (done) => {

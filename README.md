@@ -186,6 +186,10 @@ stream.on('data', data => {
 })
 ```
 
+#### `feedStore.createBatchStream([callback|options]) -> ReadableStream`
+
+Almost equal to `createReadStream` but the batch messages will be returned in a single array of messages.
+
 ### Events
 
 #### `feedStore.on('ready', () => {})`
