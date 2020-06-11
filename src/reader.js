@@ -145,8 +145,6 @@ export default class Reader {
       metadata: { path, metadata }
     }, this._options, typeof streamOptions === 'object' ? streamOptions : {});
 
-    const { feedStoreInfo = false } = streamOptions;
-
     const stream = createBatchStream(feed, streamOptions);
 
     eos(stream, () => {
@@ -154,21 +152,11 @@ export default class Reader {
     });
 
     const transform = through.obj((messages, _, next) => {
-      if (feedStoreInfo) {
-        if (this._inBatch) {
-          transform.push(messages);
-        } else {
-          for (const message of messages) {
-            transform.push(message);
-          }
-        }
+      if (this._inBatch) {
+        transform.push(messages);
       } else {
-        if (this._inBatch) {
-          transform.push(messages.map(m => m.data));
-        } else {
-          for (const message of messages) {
-            transform.push(message.data);
-          }
+        for (const message of messages) {
+          transform.push(message);
         }
       }
 
