@@ -69,9 +69,8 @@ export default class Reader {
       // feeds to sync
       if (descriptor.feed.length > 0) {
         this._feedsToSync.add(descriptor.feed);
+        this._syncState[descriptor.key.toString('hex')] = 0;
       }
-
-      this._syncState[descriptor.key.toString('hex')] = 0;
 
       return { descriptor, streamOptions };
     }));

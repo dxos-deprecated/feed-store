@@ -336,7 +336,7 @@ describe('FeedStore', () => {
   test('createReadStream with empty messages', async () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    const [feed1, feed2, feed3] = await generateStreamData(feedStore, 0);
+    await generateStreamData(feedStore, 0);
     const onSync = jest.fn();
     const messages = [];
     const stream = feedStore.createReadStream();
@@ -348,17 +348,13 @@ describe('FeedStore', () => {
 
     expect(messages.length).toBe(0);
     expect(onSync).toHaveBeenCalledTimes(1);
-    expect(onSync).toHaveBeenCalledWith({
-      [feed1.key.toString('hex')]: 0,
-      [feed2.key.toString('hex')]: 0,
-      [feed3.key.toString('hex')]: 0
-    });
+    expect(onSync).toHaveBeenCalledWith({});
   });
 
   test('createReadStream with 200 messages', async () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    const [feed1, feed2, feed3] = await generateStreamData(feedStore);
+    const [feed1, feed2] = await generateStreamData(feedStore);
 
     const onSync = jest.fn();
     const messages = [];
@@ -381,15 +377,14 @@ describe('FeedStore', () => {
     expect(onSync).toHaveBeenCalledTimes(1);
     expect(onSync).toHaveBeenCalledWith({
       [feed1.key.toString('hex')]: 199,
-      [feed2.key.toString('hex')]: 199,
-      [feed3.key.toString('hex')]: 0
+      [feed2.key.toString('hex')]: 199
     });
   });
 
   test('createReadStream filter [feed2=false]', async () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    const [feed1, feed2, feed3] = await generateStreamData(feedStore);
+    const [feed1, feed2] = await generateStreamData(feedStore);
 
     const onSync = jest.fn();
     const messages = [];
@@ -408,8 +403,7 @@ describe('FeedStore', () => {
     expect(syncMessages[0].key).toEqual(feed1.key);
     expect(onSync).toHaveBeenCalledTimes(1);
     expect(onSync).toHaveBeenCalledWith({
-      [feed1.key.toString('hex')]: 199,
-      [feed3.key.toString('hex')]: 0
+      [feed1.key.toString('hex')]: 199
     });
   });
 
@@ -442,15 +436,14 @@ describe('FeedStore', () => {
     expect(onSync).toHaveBeenCalledTimes(1);
     expect(onSync).toHaveBeenCalledWith({
       [feed1.key.toString('hex')]: 199,
-      [feed2.key.toString('hex')]: 199,
-      [feed3.key.toString('hex')]: 0
+      [feed2.key.toString('hex')]: 199
     });
   });
 
   test('createBatchStream with 200 messages and [batch=50]', async () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    const [feed1, feed2, feed3] = await generateStreamData(feedStore);
+    const [feed1, feed2] = await generateStreamData(feedStore);
 
     const onSync = jest.fn();
     const batches = [];
@@ -478,8 +471,7 @@ describe('FeedStore', () => {
     expect(onSync).toHaveBeenCalledTimes(1);
     expect(onSync).toHaveBeenCalledWith({
       [feed1.key.toString('hex')]: 199,
-      [feed2.key.toString('hex')]: 199,
-      [feed3.key.toString('hex')]: 0
+      [feed2.key.toString('hex')]: 199
     });
   });
 
