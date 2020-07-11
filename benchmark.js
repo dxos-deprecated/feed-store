@@ -1,5 +1,5 @@
 //
-// Copyright 2019 DxOS.
+// Copyright 2019 DXOS.org
 //
 
 const { createStorage } = require('@dxos/random-access-multi-storage');

@@ -1,6 +1,7 @@
 //
-// Copyright 2019 DxOS.
+// Copyright 2019 DXOS.org
 //
+
 import { EventEmitter } from 'events';
 import assert from 'assert';
 import hypertrie from 'hypertrie';
@@ -184,7 +185,9 @@ export class FeedStore extends EventEmitter {
    *
    * @param {Buffer} discoverKey
    * @returns {FeedDescriptor|undefined}
+   * @deprecated since not relevant to feed store.
    */
+  // TODO(burdon): Remove
   getDescriptorByDiscoveryKey (discoverKey) {
     return this._descriptors.get(discoverKey.toString('hex'));
   }
