@@ -1,5 +1,5 @@
 //
-// Copyright 2019 DxOS.
+// Copyright 2019 DXOS.org
 //
 
 import { EventEmitter } from 'events';
@@ -7,18 +7,15 @@ import assert from 'assert';
 import hypertrie from 'hypertrie';
 import jsonBuffer from 'buffer-json-encoding';
 import defaultHypercore from 'hypercore';
+import nanoresource from 'nanoresource-promise';
+import pEvent from 'p-event';
 
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
-import Locker from './locker';
 import Reader from './reader';
 
+// TODO(burdon): Change (dxos.store).
 const STORE_NAMESPACE = '@feedstore';
-
-const OPENED = 'opened';
-const OPENING = 'opening';
-const CLOSED = 'closed';
-const CLOSING = 'closing';
 
 /**
  *
@@ -55,10 +52,12 @@ export class FeedStore extends EventEmitter {
    * @param {number} options.timeout Defines how much to wait for open or close a feed.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    * @returns {Promise<FeedStore>}
+   * @deprecated
    */
+  // TODO(burdon): Remove.
   static async create (storage, options = {}) {
     const feedStore = new FeedStore(storage, options);
-    await feedStore.initialize();
+    await feedStore.open();
     return feedStore;
   }
 
@@ -102,11 +101,13 @@ export class FeedStore extends EventEmitter {
 
     this._readers = new Set();
 
-    this._locker = new Locker();
-
     this._indexDB = null;
 
-    this._state = CLOSED;
+    this._resource = nanoresource({
+      reopen: true,
+      open: this._open.bind(this),
+      close: this._close.bind(this)
+    });
 
     this.on('feed', (_, descriptor) => {
       this._readers.forEach(reader => {
@@ -117,11 +118,20 @@ export class FeedStore extends EventEmitter {
     });
   }
 
-  /**
-   * @type {Boolean}
-   */
   get opened () {
-    return this._state === OPENED;
+    return this._resource.opened && !this._resource.closed;
+  }
+
+  get closed () {
+    return this._resource.closed;
+  }
+
+  get opening () {
+    return this._resource.opening;
+  }
+
+  get closing () {
+    return this._resource.closing;
   }
 
   /**
@@ -132,60 +142,34 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
-   * Initialized FeedStore reading the persisted options and created each FeedDescriptor.
-   *
    * @returns {Promise}
    */
-  async initialize () {
-    if (this._state === OPENED) {
-      throw new Error('FeedStore opened');
-    }
-
-    if (this._state === CLOSED) {
-      this._state = OPENING;
-    }
-
-    const release = await this._locker.lock();
-
-    const lastState = this._state;
-
-    if (this._state === OPENED) {
-      await release();
-      return;
-    }
-
-    if (this._state === CLOSED) {
-      this._state = OPENING;
-    }
-
-    try {
-      this._indexDB = new IndexDB(this._database(this._storage, { valueEncoding: jsonBuffer }));
-
-      const list = await this._indexDB.list(STORE_NAMESPACE);
-
-      list.forEach(data => {
-        const { path, ...options } = data;
-        this._createDescriptor(path, options);
-      });
-
-      this._state = OPENED;
-      this.emit('ready');
-      await release();
-    } catch (err) {
-      this._state = lastState;
-      await release();
-      throw err;
-    }
+  open () {
+    return this._resource.open();
   }
 
+  /**
+   * @returns {Promise}
+   */
+  close () {
+    return this._resource.close();
+  }
+
+  /**
+   * @returns {Promise}
+   */
   async ready () {
     if (this.opened) {
       return;
     }
 
-    return new Promise((resolve) => {
-      this.once('ready', resolve);
-    });
+    try {
+      await pEvent(this, 'opened', {
+        rejectionEvents: ['closed']
+      });
+    } catch (err) {
+      throw new Error('FeedStore closed');
+    }
   }
 
   /**
@@ -202,7 +186,9 @@ export class FeedStore extends EventEmitter {
    *
    * @param {Buffer} discoverKey
    * @returns {FeedDescriptor|undefined}
+   * @deprecated since not relevant to feed store.
    */
+  // TODO(burdon): Remove
   getDescriptorByDiscoveryKey (discoverKey) {
     return this._descriptors.get(discoverKey.toString('hex'));
   }
@@ -270,23 +256,35 @@ export class FeedStore extends EventEmitter {
 
     await this._isOpen();
 
-    const { key } = options;
-
-    let descriptor = this.getDescriptors().find(fd => fd.path === path);
-
-    if (descriptor && key && !key.equals(descriptor.key)) {
-      throw new Error(`Invalid public key "${key.toString('hex')}"`);
+    if (!this._resource.active()) {
+      throw new Error('FeedStore closed');
     }
 
-    if (!descriptor && key && this.getDescriptors().find(fd => fd.key.equals(key))) {
-      throw new Error(`Feed exists with same public key "${key.toString('hex')}"`);
-    }
+    try {
+      const { key } = options;
 
-    if (!descriptor) {
-      descriptor = this._createDescriptor(path, options);
-    }
+      let descriptor = this.getDescriptors().find(fd => fd.path === path);
 
-    return descriptor.open();
+      if (descriptor && key && !key.equals(descriptor.key)) {
+        throw new Error(`Invalid public key "${key.toString('hex')}"`);
+      }
+
+      if (!descriptor && key && this.getDescriptors().find(fd => fd.key.equals(key))) {
+        throw new Error(`Feed exists with same public key "${key.toString('hex')}"`);
+      }
+
+      if (!descriptor) {
+        descriptor = this._createDescriptor(path, options);
+      }
+
+      const feed = await descriptor.open();
+
+      this._resource.inactive();
+      return feed;
+    } catch (err) {
+      this._resource.inactive();
+      throw err;
+    }
   }
 
   /**
@@ -300,13 +298,34 @@ export class FeedStore extends EventEmitter {
 
     await this._isOpen();
 
-    const descriptor = this.getDescriptors().find(fd => fd.path === path);
-
-    if (!descriptor) {
-      throw new Error(`Feed not found: ${path}`);
+    if (!this._resource.active()) {
+      throw new Error('FeedStore closed');
     }
 
-    return descriptor.close();
+    try {
+      const descriptor = this.getDescriptors().find(fd => fd.path === path);
+
+      if (!descriptor) {
+        throw new Error(`Feed not found: ${path}`);
+      }
+
+      await descriptor.close();
+      this._resource.inactive();
+    } catch (err) {
+      this._resource.inactive();
+      throw err;
+    }
+  }
+
+  /**
+   * Remove all descriptors from the indexDB.
+   *
+   * NOTE: This operation would not close the feeds.
+   *
+   * @returns {Promise<Promise[]>}
+   */
+  async deleteAllDescriptors () {
+    return Promise.all(this.getDescriptors().map(({ path }) => this.deleteDescriptor(path)));
   }
 
   /**
@@ -322,6 +341,10 @@ export class FeedStore extends EventEmitter {
 
     await this._isOpen();
 
+    if (!this._resource.active()) {
+      throw new Error('FeedStore closed');
+    }
+
     const descriptor = this.getDescriptors().find(fd => fd.path === path);
 
     let release;
@@ -334,60 +357,10 @@ export class FeedStore extends EventEmitter {
 
       this.emit('descriptor-remove', descriptor);
       await release();
+      this._resource.inactive();
     } catch (err) {
       await release();
-      throw err;
-    }
-  }
-
-  /**
-   * Close the hypertrie and their feeds.
-   *
-   * @returns {Promise}
-   */
-  async close () {
-    if (this._state === CLOSED) {
-      throw new Error('FeedStore closed');
-    }
-
-    if (this._state === OPENED) {
-      this._state = CLOSING;
-    }
-
-    const release = await this._locker.lock();
-
-    const lastState = this._state;
-
-    if (this._state === CLOSED) {
-      await release();
-      return;
-    }
-
-    if (this._state === OPENED) {
-      this._state = CLOSING;
-    }
-
-    try {
-      this._readers.forEach(reader => {
-        reader.destroy(new Error('FeedStore closed'));
-      });
-
-      await Promise.all(this
-        .getDescriptors()
-        .map(descriptor => descriptor.close())
-      );
-
-      this._descriptors.clear();
-
-      await this._indexDB.close();
-
-      this._state = CLOSED;
-
-      this.emit('closed');
-      await release();
-    } catch (err) {
-      this._state = lastState;
-      await release();
+      this._resource.inactive();
       throw err;
     }
   }
@@ -399,26 +372,63 @@ export class FeedStore extends EventEmitter {
    * @returns {ReadableStream}
    */
   createReadStream (callback = () => true) {
-    const reader = new Reader(callback);
+    return this._createReadStream(callback);
+  }
 
-    this._readers.add(reader);
+  /**
+   * Creates a ReadableStream from the loaded feeds and returns the messages in batch.
+   *
+   * @param {StreamCallback|Object} [callback] Filter function to return options for each feed.createReadStream (returns `false` will ignore the feed) or default object options for each feed.createReadStream(options)
+   * @returns {ReadableStream}
+   */
+  createBatchStream (callback = () => true) {
+    return this._createReadStream(callback, true);
+  }
 
-    reader.onEnd(() => {
-      this._readers.delete(reader);
+  /**
+   * Initialized FeedStore reading the persisted options and created each FeedDescriptor.
+   *
+   * @returns {Promise}
+   */
+  async _open () {
+    this._indexDB = new IndexDB(this._database(this._storage, { valueEncoding: jsonBuffer }));
+
+    const list = await this._indexDB.list(STORE_NAMESPACE);
+
+    list.forEach(data => {
+      const { path, ...options } = data;
+      this._createDescriptor(path, options);
     });
 
-    this
-      ._isOpen()
-      .then(() => Promise.all(this
-        .getDescriptors()
-        .filter(descriptor => descriptor.opened)
-        .map(descriptor => reader.addFeedStream(descriptor))
-      ))
-      .catch(err => {
-        reader.destroy(err);
-      });
+    this.emit('opened');
 
-    return reader.stream;
+    // backward compatibility
+    this.emit('ready');
+  }
+
+  /**
+   * Close the hypertrie and their feeds.
+   *
+   */
+  async _close () {
+    this._readers.forEach(reader => {
+      try {
+        reader.destroy(new Error('FeedStore closed'));
+      } catch (err) {
+        // ignore
+      }
+    });
+
+    await Promise.all(this
+      .getDescriptors()
+      .map(descriptor => descriptor.close())
+    );
+
+    this._descriptors.clear();
+
+    await this._indexDB.close();
+
+    this.emit('closed');
   }
 
   /**
@@ -508,15 +518,44 @@ export class FeedStore extends EventEmitter {
   }
 
   async _isOpen () {
-    if (this._state === CLOSED || this._state === CLOSING) {
+    if ((!this.opening && !this.opened) || this.closing || this.closed) {
       throw new Error('FeedStore closed');
     }
 
-    if (this._state === OPENED) {
+    if (this.opened) {
       return;
     }
 
-    // If is opening we wait to be ready.
     return this.ready();
+  }
+
+  _createReadStream (callback, inBatch = false) {
+    const reader = new Reader(callback, inBatch);
+
+    this._readers.add(reader);
+
+    reader.onEnd(() => {
+      this._readers.delete(reader);
+    });
+
+    this
+      ._isOpen()
+      .then(() => {
+        return reader.addInitialFeedStreams(this
+          .getDescriptors()
+          .filter(descriptor => descriptor.opened));
+      })
+      .catch(err => {
+        reader.destroy(err);
+      });
+
+    return reader.stream;
+  }
+
+  /**
+   * Old initialize method keep it for backward compatibility
+   */
+  initialize () {
+    return this.open();
   }
 }

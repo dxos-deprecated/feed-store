@@ -1,5 +1,5 @@
 //
-// Copyright 2019 DxOS.
+// Copyright 2019 DXOS.org
 //
 
 import ram from 'random-access-memory';

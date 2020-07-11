@@ -1,5 +1,5 @@
 //
-// Copyright 2019 DxOS.
+// Copyright 2019 DXOS.org
 //
 
 import hypertrie from 'hypertrie';
@@ -7,22 +7,36 @@ import tempy from 'tempy';
 import ram from 'random-access-memory';
 import hypercore from 'hypercore';
 import pify from 'pify';
-import wait from 'wait-for-expect';
 import eos from 'end-of-stream-promise';
 
 import { FeedStore } from './feed-store';
 
-describe('FeedStore', () => {
-  let booksFeed;
-  let usersFeed;
-  let groupsFeed;
-  let feedStore;
+async function createDefault () {
   const directory = tempy.directory();
 
-  function createDefault () {
-    return FeedStore.create(directory, { feedOptions: { valueEncoding: 'utf-8' } });
-  }
+  return {
+    directory,
+    feedStore: await FeedStore.create(directory, { feedOptions: { valueEncoding: 'utf-8' } })
+  };
+}
 
+async function defaultFeeds (feedStore) {
+  return {
+    booksFeed: await feedStore.openFeed('/books', { metadata: { topic: 'books' } }),
+    usersFeed: await feedStore.openFeed('/users'),
+    groupsFeed: await feedStore.openFeed('/groups')
+  };
+}
+
+function append (feed, message) {
+  return pify(feed.append.bind(feed))(message);
+}
+
+function head (feed) {
+  return pify(feed.head.bind(feed))();
+}
+
+describe('FeedStore', () => {
   test('Config default', async () => {
     const feedStore = await FeedStore.create(ram);
     expect(feedStore).toBeInstanceOf(FeedStore);
@@ -33,64 +47,9 @@ describe('FeedStore', () => {
     const feedStore2 = new FeedStore(ram);
     expect(feedStore2).toBeInstanceOf(FeedStore);
     expect(feedStore2.opened).toBeFalsy();
-    feedStore2.initialize();
+    feedStore2.open();
     await expect(feedStore2.ready()).resolves.toBeUndefined();
     expect(feedStore2.opened).toBeTruthy();
-  });
-
-  test('Should throw an assert error creating without storage.', async () => {
-    await expect(FeedStore.create()).rejects.toThrow(/storage is required/);
-  });
-
-  test('Should release the lock if there is an error on the initialization.', async () => {
-    const feedStore = new FeedStore(ram, { database: () => { throw new Error('error'); } });
-    await expect(feedStore.initialize()).rejects.toThrow(/error/);
-    const release = await feedStore._locker.lock();
-    expect(release).toBeDefined();
-    await release();
-  });
-
-  test('Config default and valueEncoding utf-8', async () => {
-    feedStore = await createDefault();
-
-    expect(feedStore).toBeInstanceOf(FeedStore);
-  });
-
-  test('Create feed', async () => {
-    const metadata = { topic: 'books' };
-    booksFeed = await feedStore.openFeed('/books', { metadata });
-    expect(booksFeed).toBeInstanceOf(hypercore);
-    const booksFeedDescriptor = feedStore.getDescriptors().find(fd => fd.path === '/books');
-    expect(booksFeedDescriptor).toHaveProperty('path', '/books');
-    expect(booksFeedDescriptor.metadata).toEqual(metadata);
-    await pify(booksFeed.append.bind(booksFeed))('Foundation and Empire');
-    await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
-    // It should return the same opened instance.
-    await expect(feedStore.openFeed('/books')).resolves.toBe(booksFeed);
-    // You can't open a feed with a different key.
-    await expect(feedStore.openFeed('/books', { key: Buffer.from('...') })).rejects.toThrow(/Invalid public key/);
-    await expect(feedStore.openFeed('/foo', { key: booksFeed.key })).rejects.toThrow(/Feed exists/);
-
-    // Create a reader feed from key
-    const feedStore2 = await FeedStore.create(ram);
-    const readerFeed = await feedStore2.openFeed('/reader', { key: booksFeed.key });
-    expect(readerFeed).toBeInstanceOf(hypercore);
-  });
-
-  test('Create duplicate feed', async () => {
-    const [feed1, feed2] = await Promise.all([feedStore.openFeed('/users'), feedStore.openFeed('/users')]);
-    expect(feed1).toBe(feed2);
-    usersFeed = feed1;
-    groupsFeed = await feedStore.openFeed('/groups');
-
-    await pify(usersFeed.append.bind(usersFeed))('alice');
-    await expect(pify(usersFeed.head.bind(usersFeed))()).resolves.toBe('alice');
-  });
-
-  test('Create and close a feed', async () => {
-    await expect(feedStore.closeFeed('/fooo')).rejects.toThrow(/Feed not found/);
-    await feedStore.closeFeed('/groups');
-    expect(groupsFeed.opened).toBeTruthy();
   });
 
   test('Config default + custom database + custom hypercore', async () => {
@@ -114,39 +73,113 @@ describe('FeedStore', () => {
     expect(customHypercore.mock.calls.length).toBe(1);
   });
 
+  test('Should throw an assert error creating without storage.', async () => {
+    await expect(FeedStore.create()).rejects.toThrow(/storage is required/);
+  });
+
+  test('Create feed', async () => {
+    const { feedStore } = await createDefault();
+    const { booksFeed } = await defaultFeeds(feedStore);
+
+    expect(booksFeed).toBeInstanceOf(hypercore);
+
+    const booksFeedDescriptor = feedStore.getDescriptors().find(fd => fd.path === '/books');
+    expect(booksFeedDescriptor).toHaveProperty('path', '/books');
+    expect(booksFeedDescriptor.metadata).toHaveProperty('topic', 'books');
+
+    await append(booksFeed, 'Foundation and Empire');
+    await expect(head(booksFeed)).resolves.toBe('Foundation and Empire');
+
+    // It should return the same opened instance.
+    await expect(feedStore.openFeed('/books')).resolves.toBe(booksFeed);
+
+    // You can't open a feed with a different key.
+    await expect(feedStore.openFeed('/books', { key: Buffer.from('...') })).rejects.toThrow(/Invalid public key/);
+    await expect(feedStore.openFeed('/foo', { key: booksFeed.key })).rejects.toThrow(/Feed exists/);
+  });
+
+  test('Create duplicate feed', async () => {
+    const { feedStore } = await createDefault();
+
+    const [usersFeed, feed2] = await Promise.all([feedStore.openFeed('/users'), feedStore.openFeed('/users')]);
+    expect(usersFeed).toBe(feed2);
+
+    await append(usersFeed, 'alice');
+    await expect(head(usersFeed)).resolves.toBe('alice');
+  });
+
+  test('Create and close a feed', async () => {
+    const { feedStore } = await createDefault();
+
+    await expect(feedStore.closeFeed('/foo')).rejects.toThrow(/Feed not found/);
+
+    const foo = await feedStore.openFeed('/foo');
+    expect(foo.opened).toBeTruthy();
+    expect(foo.closed).toBeFalsy();
+
+    await feedStore.closeFeed('/foo');
+    expect(foo.closed).toBeTruthy();
+  });
+
   test('Descriptors', async () => {
+    const { feedStore } = await createDefault();
+    const { booksFeed } = await defaultFeeds(feedStore);
+
     expect(feedStore.getDescriptors().map(fd => fd.path)).toEqual(['/books', '/users', '/groups']);
     expect(feedStore.getDescriptorByDiscoveryKey(booksFeed.discoveryKey).path).toEqual('/books');
   });
 
   test('Feeds', async () => {
-    expect(feedStore.getOpenFeeds().map(f => f.key)).toEqual([booksFeed.key, usersFeed.key]);
+    const { feedStore } = await createDefault();
+    const { booksFeed, usersFeed, groupsFeed } = await defaultFeeds(feedStore);
+
+    expect(feedStore.getOpenFeeds().map(f => f.key)).toEqual([booksFeed.key, usersFeed.key, groupsFeed.key]);
     expect(feedStore.getOpenFeed(fd => fd.key.equals(booksFeed.key))).toBe(booksFeed);
     expect(feedStore.getOpenFeed(() => false)).toBeUndefined();
     expect(feedStore.getOpenFeeds(fd => fd.path === '/books')).toEqual([booksFeed]);
   });
 
-  test('Load feed', async () => {
-    const [feed] = await feedStore.openFeeds(fd => fd.path === '/groups');
+  test('Close/Load feed', async () => {
+    const { feedStore } = await createDefault();
+    const { booksFeed } = await defaultFeeds(feedStore);
+
+    await feedStore.closeFeed('/books');
+    expect(feedStore.getDescriptors().find(fd => fd.path === '/books')).toHaveProperty('opened', false);
+
+    const [feed] = await feedStore.openFeeds(fd => fd.path === '/books');
     expect(feed).toBeDefined();
-    expect(feed.key).toEqual(groupsFeed.key);
-    expect(feedStore.getDescriptors().find(fd => fd.path === '/groups')).toHaveProperty('opened', true);
+    expect(feed.key).toEqual(booksFeed.key);
+    expect(feedStore.getDescriptors().find(fd => fd.path === '/books')).toHaveProperty('opened', true);
   });
 
   test('Close feedStore and their feeds', async () => {
+    const { feedStore } = await createDefault();
+    await defaultFeeds(feedStore);
+
+    expect(feedStore.opened).toBe(true);
+    expect(feedStore.closed).toBe(false);
+    expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(3);
+
     await feedStore.close();
     expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(0);
     expect(feedStore.opened).toBe(false);
-    await expect(feedStore.close()).rejects.toThrow(/closed/);
+    expect(feedStore.closed).toBe(true);
   });
 
   test('Reopen feedStore and recreate feeds from the indexDB', async () => {
-    await feedStore.initialize();
+    const { feedStore } = await createDefault();
+    let { booksFeed, usersFeed } = await defaultFeeds(feedStore);
 
+    await append(booksFeed, 'Foundation and Empire');
+    await append(usersFeed, 'alice');
+
+    await feedStore.close();
+    await feedStore.open();
+    expect(feedStore.opened).toBe(true);
     expect(feedStore.getDescriptors().length).toBe(3);
 
-    const booksFeed = await feedStore.openFeed('/books');
-    const [usersFeed] = await feedStore.openFeeds(fd => fd.path === '/users');
+    booksFeed = await feedStore.openFeed('/books');
+    ([usersFeed] = await feedStore.openFeeds(fd => fd.path === '/users'));
     expect(feedStore.getDescriptors().filter(fd => fd.opened).length).toBe(2);
 
     await expect(pify(booksFeed.head.bind(booksFeed))()).resolves.toBe('Foundation and Empire');
@@ -158,6 +191,9 @@ describe('FeedStore', () => {
   });
 
   test('Delete descriptor', async () => {
+    const { feedStore } = await createDefault();
+    await defaultFeeds(feedStore);
+
     await feedStore.deleteDescriptor('/books');
     expect(feedStore.getDescriptors().length).toBe(2);
   });
@@ -168,8 +204,8 @@ describe('FeedStore', () => {
 
     const feed = await feedStore.openFeed('/test');
     expect(feed).toBeInstanceOf(hypercore);
-    await pify(feed.append.bind(feed))('test');
-    await expect(pify(feed.head.bind(feed))()).resolves.toBeInstanceOf(Buffer);
+    await append(feed, 'test');
+    await expect(head(feed)).resolves.toBeInstanceOf(Buffer);
   });
 
   test('Default codec: json + custom codecs', async () => {
@@ -203,14 +239,14 @@ describe('FeedStore', () => {
     {
       const feed = await feedStore.openFeed('/test');
       expect(feed).toBeInstanceOf(hypercore);
-      await pify(feed.append.bind(feed))('test');
-      await expect(pify(feed.head.bind(feed))()).resolves.toBe('test');
+      await append(feed, 'test');
+      await expect(head(feed)).resolves.toBe('test');
     }
     {
       const feed = await feedStore.openFeed('/a', { valueEncoding: 'codecA' });
       expect(feed).toBeInstanceOf(hypercore);
-      await pify(feed.append.bind(feed))({ msg: 'test' });
-      await expect(pify(feed.head.bind(feed))()).resolves.toEqual({ msg: 'test', encodedBy: 'codecA' });
+      await append(feed, { msg: 'test' });
+      await expect(head(feed)).resolves.toEqual({ msg: 'test', encodedBy: 'codecA' });
     }
   });
 
@@ -268,165 +304,175 @@ describe('FeedStore', () => {
     await release();
   });
 
-  test('createReadStream', async () => {
-    const feedStore = await FeedStore.create(ram);
-
-    const foo = await feedStore.openFeed('/foo');
-    const bar = await feedStore.openFeed('/bar');
-    await Promise.all([
-      pify(foo.append.bind(foo))('foo1'),
-      pify(bar.append.bind(bar))('bar1')
+  async function generateStreamData (feedStore, maxMessages = 200) {
+    const [feed1, feed2, feed3] = await Promise.all([
+      feedStore.openFeed('/feed1'),
+      feedStore.openFeed('/feed2'),
+      feedStore.openFeed('/feed3')
     ]);
 
-    const stream = feedStore.createReadStream();
-
     const messages = [];
-    stream.on('data', (chunk) => {
-      messages.push(chunk.toString('utf8'));
-    });
-
-    const liveStream1 = testLiveStream({ live: true });
-    const liveStream2 = testLiveStream(() => ({ live: true }));
-
-    await eos(stream);
-    expect(messages.sort()).toEqual(['bar1', 'foo1']);
-
-    const quz = await feedStore.openFeed('/quz');
-    await pify(quz.append.bind(quz))('quz1');
-
-    await Promise.all([liveStream1, liveStream2]);
-
-    async function testLiveStream (...args) {
-      const liveMessages = [];
-      const liveStream = feedStore.createReadStream(...args);
-      liveStream.on('data', (chunk) => {
-        liveMessages.push(chunk.toString('utf8'));
-      });
-      await wait(() => {
-        expect(liveMessages.sort()).toEqual(['bar1', 'foo1', 'quz1']);
-      });
-      liveStream.destroy();
+    for (let i = 0; i < maxMessages; i++) {
+      messages.push(append(feed1, `feed1/message${i}`));
+      messages.push(append(feed2, `feed2/message${i}`));
     }
-  });
 
-  test('createReadStreamByFilter', async () => {
-    const feedStore = await FeedStore.create(ram);
+    await Promise.all(messages);
 
-    const foo = await feedStore.openFeed('/foo', { metadata: { topic: 'topic1' } });
-    const bar = await feedStore.openFeed('/bar');
+    return [feed1, feed2, feed3];
+  }
 
-    await Promise.all([
-      pify(foo.append.bind(foo))('foo1'),
-      pify(bar.append.bind(bar))('bar1')
-    ]);
-
-    const stream = feedStore.createReadStream(({ metadata = {} }) => {
-      if (metadata.topic === 'topic1') {
-        return true;
-      }
-    });
-
-    const liveStream = testLiveStream(({ metadata = {} }) => {
-      if (metadata.topic === 'topic1') {
-        return { live: true };
-      }
-    });
-
-    const messages = [];
-    stream.on('data', (chunk) => {
-      messages.push(chunk.toString('utf8'));
-    });
-
-    await eos(stream);
-    expect(messages.sort()).toEqual(['foo1']);
-
-    const baz = await feedStore.openFeed('/baz');
-    await pify(baz.append.bind(baz))('baz1');
-
-    const quz = await feedStore.openFeed('/quz', { metadata: { topic: 'topic1' } });
-    await pify(quz.append.bind(quz))('quz1');
-
-    await liveStream;
-
-    async function testLiveStream (...args) {
-      const liveMessages = [];
-      const liveStream = feedStore.createReadStream(...args);
-
-      liveStream.on('data', (chunk) => {
-        liveMessages.push(chunk.toString('utf8'));
-      });
-
-      await wait(() => {
-        expect(liveMessages.sort()).toEqual(['foo1', 'quz1']);
-      });
-      liveStream.destroy();
+  function asc (a, b) {
+    if (a.data > b.data) {
+      return 1;
     }
-  });
+    if (a.data < b.data) {
+      return -1;
+    }
+    // a must be equal to b
+    return 0;
+  }
 
-  test('createReadStream with feedStoreInfo', async () => {
-    const sort = (a, b) => {
-      if (a.data > b.data) return 1;
-      if (a.data < b.data) return -1;
-      return 0;
-    };
-
+  test('createReadStream with empty messages', async () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    const foo = await feedStore.openFeed('/foo');
-    const bar = await feedStore.openFeed('/bar');
-    await Promise.all([
-      pify(foo.append.bind(foo))('foo1'),
-      pify(foo.append.bind(foo))('foo2'),
-      pify(bar.append.bind(bar))('bar1'),
-      pify(bar.append.bind(bar))('bar2')
-    ]);
-
-    const stream = feedStore.createReadStream(descriptor => {
-      const options = { feedStoreInfo: true };
-      if (descriptor.path === '/foo') {
-        options.start = 1;
-      }
-
-      return options;
-    });
-
+    await generateStreamData(feedStore, 0);
+    const onSync = jest.fn();
     const messages = [];
-    stream.on('data', (chunk) => {
-      messages.push(chunk);
+    const stream = feedStore.createReadStream();
+    stream.on('data', (msg) => {
+      messages.push(msg);
     });
+    stream.on('sync', onSync);
+    await new Promise(resolve => eos(stream, () => resolve()));
 
-    const liveStream1 = testLiveStream({ live: true, feedStoreInfo: true });
+    expect(messages.length).toBe(0);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({});
+  });
 
-    await eos(stream);
+  test('createReadStream with 200 messages', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    expect(messages.sort(sort)).toEqual([
-      { data: 'bar1', seq: 0, path: '/bar', key: bar.key, metadata: undefined },
-      { data: 'bar2', seq: 1, path: '/bar', key: bar.key, metadata: undefined },
-      { data: 'foo2', seq: 1, path: '/foo', key: foo.key, metadata: undefined }
-    ]);
+    const [feed1, feed2] = await generateStreamData(feedStore);
 
-    const quz = await feedStore.openFeed('/quz');
-    await pify(quz.append.bind(quz))('quz1');
+    const onSync = jest.fn();
+    const messages = [];
+    const stream = feedStore.createReadStream({ feedStoreInfo: true });
+    stream.on('data', (msg) => {
+      messages.push(msg);
+    });
+    stream.on('sync', onSync);
+    await new Promise(resolve => eos(stream, () => resolve()));
 
-    await liveStream1;
+    messages.sort(asc);
 
-    async function testLiveStream (...args) {
-      const liveMessages = [];
-      const liveStream = feedStore.createReadStream(...args);
-      liveStream.on('data', (chunk) => {
-        liveMessages.push(chunk);
-      });
-      await wait(() => {
-        expect(liveMessages.sort(sort)).toEqual([
-          { data: 'bar1', seq: 0, path: '/bar', key: bar.key, metadata: undefined },
-          { data: 'bar2', seq: 1, path: '/bar', key: bar.key, metadata: undefined },
-          { data: 'foo1', seq: 0, path: '/foo', key: foo.key, metadata: undefined },
-          { data: 'foo2', seq: 1, path: '/foo', key: foo.key, metadata: undefined },
-          { data: 'quz1', seq: 0, path: '/quz', key: quz.key, metadata: undefined }
-        ]);
-      });
-      liveStream.destroy();
+    expect(messages.length).toBe(400);
+
+    // sync test
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 199,
+      [feed2.key.toString('hex')]: 199
+    });
+  });
+
+  test('createReadStream filter [feed2=false]', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+
+    const [feed1, feed2] = await generateStreamData(feedStore);
+
+    const onSync = jest.fn();
+    const messages = [];
+    const stream = feedStore.createReadStream(descriptor => (!descriptor.key.equals(feed2.key) && { feedStoreInfo: true }));
+    stream.on('data', (msg) => messages.push(msg));
+    stream.on('sync', onSync);
+    await new Promise(resolve => eos(stream, () => resolve()));
+
+    messages.sort(asc);
+
+    expect(messages.length).toBe(200);
+
+    // sync test
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(1);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 199
+    });
+  });
+
+  test('createReadStream [live=true]', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+
+    const [feed1, feed2, feed3] = await generateStreamData(feedStore);
+
+    const onSync = jest.fn();
+    const messages = [];
+    const stream = feedStore.createReadStream({ live: true, feedStoreInfo: true });
+    stream.on('data', (msg) => messages.push(msg));
+    stream.on('sync', onSync);
+    for (let i = 0; i < 2000; i++) {
+      await append(feed3, `feed3/message${i}`);
+      await new Promise(resolve => setImmediate(resolve));
     }
+    process.nextTick(() => stream.destroy());
+    await new Promise(resolve => eos(stream, () => resolve()));
+
+    messages.sort(asc);
+
+    expect(messages.length).toBe(200 * 2 + 2000);
+
+    // sync test
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2002);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 199,
+      [feed2.key.toString('hex')]: 199
+    });
+  });
+
+  test('createBatchStream with 200 messages and [batch=50]', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+
+    const [feed1, feed2] = await generateStreamData(feedStore);
+
+    const onSync = jest.fn();
+    const batches = [];
+    const stream = feedStore.createBatchStream({ batch: 50, feedStoreInfo: true });
+    stream.on('data', (msg) => {
+      batches.push(msg);
+    });
+    stream.on('sync', onSync);
+    await new Promise(resolve => eos(stream, () => resolve()));
+
+    expect(batches.length).toBe(400 / 50);
+
+    // flat data
+    const messages = batches.reduce((prev, curr) => [...prev, ...curr], []);
+
+    messages.sort(asc);
+
+    expect(messages.length).toBe(400);
+
+    // sync test
+    const syncMessages = messages.filter(m => m.sync);
+    expect(syncMessages.length).toBe(2);
+    expect(syncMessages[0].key).toEqual(feed1.key);
+    expect(syncMessages[1].key).toEqual(feed2.key);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 199,
+      [feed2.key.toString('hex')]: 199
+    });
   });
 
   test('append event', async (done) => {
@@ -451,14 +497,14 @@ describe('FeedStore', () => {
 
     // Check that the metadata was updated in indexdb.
     await feedStore.close();
-    await feedStore.initialize();
+    await feedStore.open();
     descriptor = feedStore.getDescriptors().find(fd => fd.path === '/test');
     expect(descriptor.metadata).toEqual({ tag: 1 });
   });
 
   test('openFeed should wait until FeedStore is ready', async () => {
     const feedStore = new FeedStore(ram);
-    feedStore.initialize();
+    feedStore.open();
     const feed = await feedStore.openFeed('/test');
     expect(feed).toBeDefined();
   });
@@ -472,7 +518,7 @@ describe('FeedStore', () => {
       resolve();
     }));
 
-    await feedStore.initialize();
+    await feedStore.open();
 
     const stream2 = feedStore.createReadStream();
     eos(stream2, err => {
@@ -494,5 +540,14 @@ describe('FeedStore', () => {
       expect(err.message).toBe('filter error');
       resolve();
     }));
+  });
+
+  test('Delete all', async () => {
+    const { feedStore } = await createDefault();
+    await defaultFeeds(feedStore);
+
+    expect(feedStore.getDescriptors().length).toBe(3);
+    await feedStore.deleteAllDescriptors();
+    expect(feedStore.getDescriptors().length).toBe(0);
   });
 });

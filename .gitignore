@@ -103,5 +103,9 @@ dist
 # TernJS port file
 .tern-port
 
+<<<<<<< HEAD
 .idea
 
+=======
+.benchmark
+>>>>>>> f15542c7073136b9c4c2e6d9711a3d00357daaf8

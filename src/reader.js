@@ -1,5 +1,5 @@
 //
-// Copyright 2019 DxOS.
+// Copyright 2019 DXOS.org
 //
 
 import assert from 'assert';
@@ -7,6 +7,8 @@ import multi from 'multi-read-stream';
 import pump from 'pump';
 import through from 'through2';
 import eos from 'end-of-stream';
+
+import createBatchStream from './create-batch-stream';
 
 const all = () => true;
 
@@ -19,7 +21,7 @@ export default class Reader {
    *
    * @param {StreamCallback|Object} [callback] Filter function to return options for each feed.createReadStream (returns `false` will ignore the feed) or default object options for each feed.createReadStream(options)
    */
-  constructor (filter) {
+  constructor (filter, inBatch = false) {
     assert(typeof filter === 'function' || typeof filter === 'object');
 
     if (typeof filter === 'function') {
@@ -30,8 +32,11 @@ export default class Reader {
       this._options = filter;
     }
 
+    this._inBatch = inBatch;
     this._stream = multi.obj({ autoDestroy: false });
     this._feeds = new Set();
+    this._feedsToSync = new Set();
+    this._syncState = {};
   }
 
   /**
@@ -39,6 +44,10 @@ export default class Reader {
    */
   get stream () {
     return this._stream;
+  }
+
+  get sync () {
+    return this._feedsToSync.size === 0;
   }
 
   /**
@@ -52,47 +61,43 @@ export default class Reader {
     });
   }
 
+  async addInitialFeedStreams (descriptors) {
+    const validFeeds = await Promise.all(descriptors.map(async descriptor => {
+      const streamOptions = await this._getFeedStreamOptions(descriptor);
+      if (!streamOptions) return null;
+
+      // feeds to sync
+      if (descriptor.feed.length > 0) {
+        this._feedsToSync.add(descriptor.feed);
+        this._syncState[descriptor.key.toString('hex')] = 0;
+      }
+
+      return { descriptor, streamOptions };
+    }));
+
+    validFeeds.filter(Boolean).forEach(({ descriptor, streamOptions }) => {
+      this._addFeedStream(descriptor, streamOptions);
+    });
+
+    // empty feedsToSync
+    if (this.sync) {
+      this._stream.emit('sync', this._syncState);
+    }
+  }
+
   /**
    * Adds a feed stream and stream the block data, seq, key and metadata.
    *
    * @param {FeedDescriptor} descriptor
    */
   async addFeedStream (descriptor) {
-    const { feed, path, key, metadata } = descriptor;
-
-    if (!feed || this._feeds.has(feed) || this._stream.destroyed) {
-      return;
-    }
-
-    let streamOptions = await this._filter(descriptor);
+    const streamOptions = await this._getFeedStreamOptions(descriptor);
     if (!streamOptions) {
-      return;
+      return false;
     }
 
-    streamOptions = Object.assign({}, this._options, typeof streamOptions === 'object' ? streamOptions : {});
-
-    const { feedStoreInfo = false, ...feedStreamOptions } = streamOptions;
-
-    const stream = feed.createReadStream(feedStreamOptions);
-
-    eos(stream, () => {
-      this._feeds.delete(feed);
-    });
-
-    if (!feedStoreInfo) {
-      this._stream.add(stream);
-      this._feeds.add(feed);
-      return;
-    }
-
-    let seq = feedStreamOptions.start === undefined ? 0 : feedStreamOptions.start;
-
-    const addFeedStoreInfo = through.obj((chunk, _, next) => {
-      next(null, { data: chunk, seq: seq++, path, key, metadata });
-    });
-
-    this._stream.add(pump(stream, addFeedStoreInfo));
-    this._feeds.add(feed);
+    this._addFeedStream(descriptor, streamOptions);
+    return true;
   }
 
   /**
@@ -104,5 +109,63 @@ export default class Reader {
     eos(this._stream, (err) => {
       callback(err);
     });
+  }
+
+  _checkFeedSync (feed, seq, sync) {
+    if (this.sync) return;
+    if (sync && this._feedsToSync.has(feed)) {
+      this._syncState[feed.key.toString('hex')] = seq;
+      this._feedsToSync.delete(feed);
+      if (this.sync) {
+        this._stream.emit('sync', this._syncState);
+      }
+    }
+  }
+
+  async _getFeedStreamOptions (descriptor) {
+    const { feed } = descriptor;
+
+    if (!feed || this._feeds.has(feed) || this._stream.destroyed) {
+      return false;
+    }
+
+    const streamOptions = await this._filter(descriptor);
+    if (!streamOptions) {
+      return false;
+    }
+
+    return streamOptions;
+  }
+
+  _addFeedStream (descriptor, streamOptions) {
+    const { feed, path, metadata } = descriptor;
+
+    streamOptions = Object.assign({
+      metadata: { path, metadata }
+    }, this._options, typeof streamOptions === 'object' ? streamOptions : {});
+
+    const stream = createBatchStream(feed, streamOptions);
+
+    eos(stream, () => {
+      this._feeds.delete(feed);
+    });
+
+    const transform = through.obj((messages, _, next) => {
+      if (this._inBatch) {
+        transform.push(messages);
+      } else {
+        for (const message of messages) {
+          transform.push(message);
+        }
+      }
+
+      const last = messages[messages.length - 1];
+      this._checkFeedSync(feed, last.seq, last.sync);
+
+      next();
+    });
+
+    this._stream.add(pump(stream, transform));
+    this._feeds.add(feed);
   }
 }
