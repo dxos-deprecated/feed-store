@@ -1,5 +1,5 @@
 //
-// Copyright 2019 DxOS.
+// Copyright 2019 DXOS.org
 //
 
 import assert from 'assert';
@@ -19,7 +19,8 @@ export default class Reader {
   /**
    * constructor
    *
-   * @param {StreamCallback|Object} [callback] Filter function to return options for each feed.createReadStream (returns `false` will ignore the feed) or default object options for each feed.createReadStream(options)
+   * @param {StreamCallback|Object} [callback] Filter function to return options for each feed.createReadStream
+   * (returns `false` will ignore the feed) or default object options for each feed.createReadStream(options)
    */
   constructor (filter, inBatch = false) {
     assert(typeof filter === 'function' || typeof filter === 'object');

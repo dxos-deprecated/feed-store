@@ -1,5 +1,5 @@
 //
-// Copyright 2019 DxOS.
+// Copyright 2019 DXOS.org
 //
 
 import ram from 'random-access-memory';
@@ -24,7 +24,10 @@ describe('FeedDescriptor', () => {
   test('Validate asserts', () => {
     expect(() => new FeedDescriptor()).toThrow(/path is required/);
     expect(() => new FeedDescriptor('/foo', { key: 'foo' })).toThrow(/key must be a buffer/);
-    expect(() => new FeedDescriptor('/foo', { key: crypto.keyPair().publicKey, secretKey: 'foo' })).toThrow(/secretKey must be a buffer/);
+    expect(() => new FeedDescriptor('/foo', {
+      key: crypto.keyPair().publicKey,
+      secretKey: 'foo'
+    })).toThrow(/secretKey must be a buffer/);
     expect(() => new FeedDescriptor('/foo', { secretKey: crypto.keyPair().secretKey })).toThrow(/missing publicKey/);
     expect(() => new FeedDescriptor('/foo', { valueEncoding: {} })).toThrow(/valueEncoding must be a string/);
   });
