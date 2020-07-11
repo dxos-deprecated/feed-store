@@ -22,9 +22,7 @@ export default function createBatchStream (feed, opts = {}) {
 
   let range = feed.download({ start: start, end: end, linear: true });
 
-  const stream = streamFrom.obj(read).on('end', cleanup).on('close', cleanup);
-
-  return stream;
+  return streamFrom.obj(read).on('end', cleanup).on('close', cleanup);
 
   function read (size, cb) {
     if (!feed.opened) return open(size, cb);

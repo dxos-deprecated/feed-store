@@ -14,7 +14,6 @@ import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
 import Reader from './reader';
 
-// TODO(burdon): Change (dxos.store).
 const STORE_NAMESPACE = '@feedstore';
 
 /**
@@ -52,9 +51,7 @@ export class FeedStore extends EventEmitter {
    * @param {number} options.timeout Defines how much to wait for open or close a feed.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    * @returns {Promise<FeedStore>}
-   * @deprecated
    */
-  // TODO(burdon): Remove.
   static async create (storage, options = {}) {
     const feedStore = new FeedStore(storage, options);
     await feedStore.open();
