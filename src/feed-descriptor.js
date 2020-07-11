@@ -53,8 +53,8 @@ class FeedDescriptor {
       'secretKey must be a buffer of size crypto_sign_SECRETKEYBYTES.');
     assert(!secretKey || (secretKey && key),
       'missing publicKey.');
-    assert(!valueEncoding || typeof valueEncoding === 'string',
-      'valueEncoding must be a string.');
+    assert(!valueEncoding || typeof valueEncoding === 'string' || (valueEncoding.encode && valueEncoding.decode),
+      'valueEncoding must be a string or implement abstract-encoding.');
 
     this._storage = storage;
     this._path = path;
@@ -238,7 +238,8 @@ class FeedDescriptor {
       this._key,
       {
         secretKey: this._secretKey,
-        valueEncoding: this._codecs[this._valueEncoding] || this._valueEncoding
+        valueEncoding: (typeof this._valueEncoding === 'string' && this._codecs[this._valueEncoding]) ||
+          this._valueEncoding
       }
     );
 
