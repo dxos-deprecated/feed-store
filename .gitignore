@@ -107,3 +107,6 @@ dist
 .idea/
 
 .benchmark
+
+.idea
+
