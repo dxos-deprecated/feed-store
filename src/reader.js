@@ -35,9 +35,13 @@ export default class Reader {
 
     this._inBatch = inBatch;
     this._stream = multi.obj({ autoDestroy: false });
+    this._stream.sync = () => this.sync;
+    this._stream.state = () => this._state;
+
     this._feeds = new Set();
     this._feedsToSync = new Set();
-    this._syncState = {};
+    this._initialState = {};
+    this._state = {};
   }
 
   /**
@@ -49,6 +53,10 @@ export default class Reader {
 
   get sync () {
     return this._feedsToSync.size === 0;
+  }
+
+  get state () {
+    return this._state;
   }
 
   /**
@@ -67,10 +75,14 @@ export default class Reader {
       const streamOptions = await this._getFeedStreamOptions(descriptor);
       if (!streamOptions) return null;
 
+      const feedKey = descriptor.key.toString('hex');
+
+      this._state[feedKey] = 0;
+
       // feeds to sync
       if (descriptor.feed.length > 0) {
-        this._feedsToSync.add(descriptor.feed);
-        this._syncState[descriptor.key.toString('hex')] = 0;
+        this._feedsToSync.add(feedKey);
+        this._initialState[feedKey] = 0;
       }
 
       return { descriptor, streamOptions };
@@ -82,7 +94,7 @@ export default class Reader {
 
     // empty feedsToSync
     if (this.sync) {
-      this._stream.emit('sync', this._syncState);
+      this._stream.emit('sync', this._initialState);
     }
   }
 
@@ -92,12 +104,22 @@ export default class Reader {
    * @param {FeedDescriptor} descriptor
    */
   async addFeedStream (descriptor) {
-    const streamOptions = await this._getFeedStreamOptions(descriptor);
+    let streamOptions = await this._getFeedStreamOptions(descriptor);
     if (!streamOptions) {
       return false;
     }
 
+    const feedKey = descriptor.key.toString('hex');
+    if (streamOptions.live && this._state[feedKey]) {
+      streamOptions = {
+        ...streamOptions,
+        start: this._state[feedKey] + 1,
+        end: streamOptions.end && streamOptions.end >= this._state[feedKey] ? streamOptions.end : undefined
+      };
+    }
+
     this._addFeedStream(descriptor, streamOptions);
+
     return true;
   }
 
@@ -113,12 +135,14 @@ export default class Reader {
   }
 
   _checkFeedSync (feed, seq, sync) {
+    const feedKey = feed.key.toString('hex');
+    this._state[feedKey] = seq;
     if (this.sync) return;
-    if (sync && this._feedsToSync.has(feed)) {
-      this._syncState[feed.key.toString('hex')] = seq;
-      this._feedsToSync.delete(feed);
+    if (sync && this._feedsToSync.has(feedKey)) {
+      this._initialState[feedKey] = seq;
+      this._feedsToSync.delete(feedKey);
       if (this.sync) {
-        this._stream.emit('sync', this._syncState);
+        this._stream.emit('sync', this._initialState);
       }
     }
   }
@@ -135,21 +159,17 @@ export default class Reader {
       return false;
     }
 
-    return streamOptions;
+    if (typeof streamOptions === 'object') {
+      return { ...this._options, ...streamOptions };
+    }
+
+    return { ...this._options };
   }
 
   _addFeedStream (descriptor, streamOptions) {
     const { feed, path, metadata } = descriptor;
 
-    streamOptions = Object.assign({
-      metadata: { path, metadata }
-    }, this._options, typeof streamOptions === 'object' ? streamOptions : {});
-
-    const stream = createBatchStream(feed, streamOptions);
-
-    eos(stream, () => {
-      this._feeds.delete(feed);
-    });
+    streamOptions.metadata = { path, metadata };
 
     const transform = through.obj((messages, _, next) => {
       if (this._inBatch) {
@@ -162,11 +182,17 @@ export default class Reader {
 
       const last = messages[messages.length - 1];
       this._checkFeedSync(feed, last.seq, last.sync);
-
       next();
     });
 
-    this._stream.add(pump(stream, transform));
+    const stream = pump(createBatchStream(feed, streamOptions), transform);
+
+    eos(stream, () => {
+      this._feeds.delete(feed);
+      this._stream.remove(stream);
+    });
+
+    this._stream.add(stream);
     this._feeds.add(feed);
   }
 }
