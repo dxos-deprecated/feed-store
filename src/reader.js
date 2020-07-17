@@ -189,7 +189,6 @@ export default class Reader {
 
     eos(stream, () => {
       this._feeds.delete(feed);
-      this._stream.remove(stream);
     });
 
     this._stream.add(stream);

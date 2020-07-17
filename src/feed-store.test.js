@@ -351,10 +351,10 @@ describe('FeedStore', () => {
     expect(onSync).toHaveBeenCalledWith({});
   });
 
-  test.only('createReadStream with 200 messages', async () => {
+  test('createReadStream with 200 messages', async () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-    const [feed1, feed2] = await generateStreamData(feedStore, 1);
+    const [feed1, feed2] = await generateStreamData(feedStore);
 
     const onSync = jest.fn();
     const messages = [];
@@ -367,7 +367,7 @@ describe('FeedStore', () => {
 
     messages.sort(asc);
 
-    expect(messages.length).toBe(2);
+    expect(messages.length).toBe(400);
 
     // sync test
     const syncMessages = messages.filter(m => m.sync);
