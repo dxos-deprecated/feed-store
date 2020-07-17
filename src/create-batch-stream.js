@@ -20,7 +20,7 @@ export default function createBatchStream (feed, opts = {}) {
   let first = true;
   let firstSyncEnd = end;
 
-  let range = feed.download({ start: start, end: end, linear: true });
+  let range = feed.download({ start, end, linear: true });
 
   return streamFrom.obj(read).on('end', cleanup).on('close', cleanup);
 

@@ -507,7 +507,7 @@ export class FeedStore extends EventEmitter {
       path: descriptor.path,
       key: descriptor.key,
       secretKey: descriptor.secretKey,
-      valueEncoding: descriptor.valueEncoding,
+      valueEncoding: typeof descriptor.valueEncoding === 'string' ? descriptor.valueEncoding : undefined,
       metadata: descriptor.metadata
     };
 
