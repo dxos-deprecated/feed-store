@@ -358,7 +358,7 @@ describe('FeedStore', () => {
 
     const onSync = jest.fn();
     const messages = [];
-    const stream = feedStore.createReadStream({ feedStoreInfo: true });
+    const stream = feedStore.createReadStream();
     stream.on('data', (msg) => {
       messages.push(msg);
     });
@@ -475,6 +475,65 @@ describe('FeedStore', () => {
     });
   });
 
+  test('createReadStream and check re-open a feed [live=true]', async () => {
+    const { feedStore } = await createDefault();
+
+    const [feed1, feed2, feed3] = await generateStreamData(feedStore, 2);
+
+    const onSync = jest.fn();
+    const messages = [];
+    const stream = feedStore.createReadStream({ live: true });
+    const done = new Promise(resolve => {
+      stream.on('data', (msg) => {
+        messages.push(msg.data);
+        if (messages.length === 6) resolve();
+      });
+    });
+
+    const waitForSync = new Promise(resolve => stream.once('sync', (state) => {
+      onSync(state);
+      resolve();
+    }));
+
+    await waitForSync;
+
+    expect(messages.length).toBe(4);
+    expect(onSync).toHaveBeenCalledTimes(1);
+    expect(onSync).toHaveBeenCalledWith({
+      [feed1.key.toString('hex')]: 1,
+      [feed2.key.toString('hex')]: 1
+    });
+
+    expect(stream.state()).toStrictEqual({
+      [feed1.key.toString('hex')]: 1,
+      [feed2.key.toString('hex')]: 1,
+      [feed3.key.toString('hex')]: 0
+    });
+
+    await feedStore.closeFeed('/feed2');
+    const reopenFeed2 = await feedStore.openFeed('/feed2');
+    await append(reopenFeed2, `feed2/message${reopenFeed2.length}`);
+    await append(reopenFeed2, `feed2/message${reopenFeed2.length}`);
+
+    await done;
+
+    messages.sort();
+
+    expect(messages).toStrictEqual([
+      'feed1/message0',
+      'feed1/message1',
+      'feed2/message0',
+      'feed2/message1',
+      'feed2/message2',
+      'feed2/message3'
+    ]);
+    expect(stream.state()).toStrictEqual({
+      [feed1.key.toString('hex')]: 1,
+      [feed2.key.toString('hex')]: 3,
+      [feed3.key.toString('hex')]: 0
+    });
+  });
+
   test('append event', async (done) => {
     const feedStore = await FeedStore.create(ram);
     const feed = await feedStore.openFeed('/test');
@@ -511,12 +570,6 @@ describe('FeedStore', () => {
 
   test('createReadStream should destroy if FeedStore is closed', async (done) => {
     const feedStore = new FeedStore(ram);
-
-    const stream = feedStore.createReadStream();
-    await new Promise(resolve => eos(stream, err => {
-      expect(err.message).toBe('FeedStore closed');
-      resolve();
-    }));
 
     await feedStore.open();
 
