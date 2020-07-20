@@ -538,7 +538,7 @@ export class FeedStore extends EventEmitter {
     });
 
     this
-      ._isOpen()
+      .ready()
       .then(() => {
         return reader.addInitialFeedStreams(this
           .getDescriptors()
