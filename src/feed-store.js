@@ -517,7 +517,7 @@ export class FeedStore extends EventEmitter {
   }
 
   async _isOpen () {
-    if ((!this.opening && !this.opened) || this.closing || this.closed) {
+    if (this.closing || this.closed) {
       throw new Error('FeedStore closed');
     }
 
@@ -538,7 +538,7 @@ export class FeedStore extends EventEmitter {
     });
 
     this
-      .ready()
+      ._isOpen()
       .then(() => {
         return reader.addInitialFeedStreams(this
           .getDescriptors()
