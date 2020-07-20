@@ -571,12 +571,6 @@ describe('FeedStore', () => {
   test('createReadStream should destroy if FeedStore is closed', async (done) => {
     const feedStore = new FeedStore(ram);
 
-    const stream = feedStore.createReadStream();
-    await new Promise(resolve => eos(stream, err => {
-      expect(err.message).toBe('FeedStore closed');
-      resolve();
-    }));
-
     await feedStore.open();
 
     const stream2 = feedStore.createReadStream();
