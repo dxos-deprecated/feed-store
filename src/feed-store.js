@@ -187,7 +187,6 @@ export class FeedStore extends EventEmitter {
    * @returns {FeedDescriptor|undefined}
    * @deprecated since not relevant to feed store.
    */
-  // TODO(burdon): Remove
   getDescriptorByDiscoveryKey (discoverKey) {
     return this._descriptors.get(discoverKey.toString('hex'));
   }
