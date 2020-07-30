@@ -49,7 +49,6 @@ export class FeedStore extends EventEmitter {
    * @param {Hypertrie} options.database Defines a custom hypertrie database to index the feeds.
    * @param {Object} options.feedOptions Default options for each feed.
    * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
-   * @param {number} options.timeout Defines how much to wait for open or close a feed.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    * @returns {Promise<FeedStore>}
    * @deprecated
@@ -68,7 +67,6 @@ export class FeedStore extends EventEmitter {
    * @param {function} options.database Defines a custom hypertrie database to index the feeds.
    * @param {Object} options.feedOptions Default options for each feed.
    * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
-   * @param {number} options.timeout Defines how much to wait for open or close a feed.
    * @param {Hypercore} options.hypercore Hypercore class to use.
    */
   constructor (storage, options = {}) {
@@ -82,8 +80,7 @@ export class FeedStore extends EventEmitter {
       database = (...args) => hypertrie(...args),
       feedOptions = {},
       codecs = {},
-      hypercore = defaultHypercore,
-      timeout
+      hypercore = defaultHypercore
     } = options;
 
     this._database = database;
@@ -91,8 +88,6 @@ export class FeedStore extends EventEmitter {
     this._defaultFeedOptions = feedOptions;
 
     this._codecs = codecs;
-
-    this._timeout = timeout;
 
     this._hypercore = hypercore;
 
@@ -453,7 +448,6 @@ export class FeedStore extends EventEmitter {
       secretKey,
       valueEncoding,
       metadata,
-      timeout: this._timeout,
       hypercore: this._hypercore,
       codecs: this._codecs
     });

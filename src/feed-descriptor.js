@@ -10,7 +10,6 @@ import crypto from 'hypercore-crypto';
 import raf from 'random-access-file';
 import pify from 'pify';
 import sodium from 'sodium-universal';
-import pTimeout from 'p-timeout';
 
 import Locker from './locker';
 
@@ -29,7 +28,6 @@ class FeedDescriptor {
    * @param {Buffer} options.key
    * @param {Buffer} options.secretKey
    * @param {Object|string} options.valueEncoding
-   * @param {number} [options.timeout=10000]
    * @param {*} options.metadata
    * @param {Hypercore} options.hypercore
    */
@@ -39,7 +37,6 @@ class FeedDescriptor {
       key,
       secretKey,
       valueEncoding,
-      timeout = 10 * 1000,
       hypercore = defaultHypercore,
       codecs = {},
       metadata
@@ -61,7 +58,6 @@ class FeedDescriptor {
     this._key = key;
     this._secretKey = secretKey;
     this._valueEncoding = valueEncoding;
-    this._timeout = timeout;
     this._hypercore = hypercore;
     this._codecs = codecs;
     this._metadata = metadata;
@@ -171,7 +167,7 @@ class FeedDescriptor {
     }
 
     try {
-      await pTimeout(this._open(), this._timeout);
+      await this._open();
       await this._emit('opened');
       await release();
       return this._feed;
@@ -195,7 +191,7 @@ class FeedDescriptor {
     }
 
     try {
-      await pTimeout(pify(this._feed.close.bind(this._feed))(), this._timeout);
+      await pify(this._feed.close.bind(this._feed))();
       await this._emit('closed');
       await release();
     } catch (err) {

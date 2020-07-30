@@ -65,7 +65,6 @@ Creates and initializes a new FeedStore.
   - `database: () => Hypertrie`: Defines a custom hypertrie database to index the feeds.
   - `feedOptions: Object`: Default hypercore options for each feed.
   - `codecs: Object`: Defines a list of available codecs to work with the feeds.
-  - `timeout: number`: Defines the time (ms) to wait for open or close a feed. Default: `10 * 1000`.
   - `hypercore: Hypercore`: Defines the Hypercore class to create feeds.
 
 #### `const feedStore = new FeedStore(storage, [options])`
