@@ -90,11 +90,11 @@ export default class OrderedReader {
           next(null, toPush);
           return true;
         } else {
-          return true;
+          return false;
         }
       };
 
-      while (await tryReading()) {
+      while (!await tryReading()) {
         await this._hasData;
       }
     });
@@ -118,6 +118,7 @@ export default class OrderedReader {
 
     stream.on('readable', () => {
       console.log('feed readable', descriptor.path);
+
       this._wakeUpReader?.();
     });
 
