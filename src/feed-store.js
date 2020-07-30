@@ -180,7 +180,6 @@ export class FeedStore extends EventEmitter {
    *
    * @param {Buffer} discoverKey
    * @returns {FeedDescriptor|undefined}
-   * @deprecated since not relevant to feed store.
    */
   getDescriptorByDiscoveryKey (discoverKey) {
     return this._descriptors.get(discoverKey.toString('hex'));
