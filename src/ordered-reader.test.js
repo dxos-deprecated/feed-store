@@ -63,17 +63,20 @@ test('OrderedReader', async () => {
     feedCounters[message.data.slice(0, 5)] = (feedCounters[message.data.slice(0, 5)] ?? 0) + 1
     console.log('got', { message, feedCounters })
     messages.push(message);
+    if(Object.values(feedCounters).length === 2 && Object.values(feedCounters).every(x => x == 1)) {
+      console.log('END')
+      break;
+    }
   }
 
   stream.on('sync', onSync);
-  await new Promise(resolve => eos(stream, () => resolve()));
 
   expect(messages.length).toBe(2);
 
   console.log(messages);
 
   // order test
-  messages.slice(0, 10).forEach(msg => {
+  messages.slice(0, 1).forEach(msg => {
     expect(msg.data.startsWith('feed2')).toBe(true);
   });
 
