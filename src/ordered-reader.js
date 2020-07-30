@@ -50,34 +50,34 @@ export default class OrderedReader extends Readable {
     this._reading = true;
     this._needsData = false;
 
-    console.log('_read called')
+    // console.log('_read called')
 
     while(true) {
       this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
 
-      console.log('starting read cycle')
+      // console.log('starting read cycle')
       for (const feed of this._feeds.values()) {
         if(feed.buffer.length === 0) {
           const messages = feed.stream.read();
-          console.log('reading from feed', feed.descriptor.path, messages, feed.stream._readableState.flowing, feed.stream.readable);
+          // console.log('reading from feed', feed.descriptor.path, messages, feed.stream._readableState.flowing, feed.stream.readable);
           if(!messages) continue;
           feed.buffer.push(...messages)
         }
 
-        console.log('processing', feed.descriptor.path)
+        // console.log('processing', feed.descriptor.path)
         let message;
         while(message = feed.buffer.shift()) {
           if (await this._evaluator(feed.descriptor, message)) {
-            console.log('approved')
+            // console.log('approved')
             process.nextTick(() => this._wakeUpReader());
             this._needsData = false;
             if(!this.push(message)) {
-              console.log('read ended')
+              // console.log('read ended')
               this._reading = false;
               return;
             }
           } else {
-            console.log('unshift', feed.descriptor.path)
+            // console.log('unshift', feed.descriptor.path)
             feed.buffer.unshift(message)
             break;
           }
@@ -107,7 +107,7 @@ export default class OrderedReader extends Readable {
     const stream = createBatchStream(descriptor.feed, { live: true });
 
     stream.on('readable', () => {
-      console.log('feed readable', descriptor.path);
+      // console.log('feed readable', descriptor.path);
 
       this._wakeUpReader();
     });

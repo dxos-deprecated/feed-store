@@ -42,7 +42,9 @@ test('OrderedReader', async () => {
 
   const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-  const [feed1, feed2] = await generateStreamData(feedStore, 1);
+  const MESSAGE_COUNT = 10;
+
+  const [feed1, feed2] = await generateStreamData(feedStore, MESSAGE_COUNT);
 
   const onSync = jest.fn();
   const messages = [];
@@ -54,7 +56,7 @@ test('OrderedReader', async () => {
       if (message.data.startsWith('feed2')) {
         return true;
       } else {
-        return feedCounters['feed2'] > 0;
+        return feedCounters['feed2'] >= MESSAGE_COUNT;
       }
     }
   );
@@ -63,7 +65,7 @@ test('OrderedReader', async () => {
     feedCounters[message.data.slice(0, 5)] = (feedCounters[message.data.slice(0, 5)] ?? 0) + 1
     console.log('got', { message, feedCounters })
     messages.push(message);
-    if(Object.values(feedCounters).length === 2 && Object.values(feedCounters).every(x => x == 1)) {
+    if(Object.values(feedCounters).length === 2 && Object.values(feedCounters).every(x => x == MESSAGE_COUNT)) {
       console.log('END')
       break;
     }
@@ -71,12 +73,12 @@ test('OrderedReader', async () => {
 
   stream.on('sync', onSync);
 
-  expect(messages.length).toBe(2);
+  expect(messages.length).toBe(MESSAGE_COUNT * 2);
 
   console.log(messages);
 
   // order test
-  messages.slice(0, 1).forEach(msg => {
+  messages.slice(0, MESSAGE_COUNT).forEach(msg => {
     expect(msg.data.startsWith('feed2')).toBe(true);
   });
 
