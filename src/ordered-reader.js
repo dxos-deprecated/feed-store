@@ -19,12 +19,9 @@ import FeedDescriptor from './feed-descriptor';
 /**
  * Creates a multi ReadableStream for feed streams.
  */
-export default class OrderedReader {
+export default class OrderedReader extends Readable {
   /** @type {(feedDescriptor, message) => Promise<boolean>} */
   _evaluator;
-
-  /** @type {any} */
-  _stream;
 
   /** @type {Set<{ descriptor: FeedDescriptor, stream: any, buffer: any[] }>} */
   _feeds = new Set();
@@ -35,66 +32,65 @@ export default class OrderedReader {
   /** @type {Promise} */
   _hasData;
 
+  _reading = false;
+
   constructor (evaluator) {
+    super({ objectMode: true })
+
     this._evaluator = evaluator;
 
     this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
-
-    this._reading = false;
-    this._stream = new Readable({ 
-      objectMode: true,
-      read: async () => {
-        if(this._reading) {
-          this._needsData = true;
-          return;
-        }
-        this._reading = true;
-        this._needsData = false;
-
-        console.log('_read called')
-
-        while(true) {
-          this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
-
-          console.log('starting read cycle')
-          for (const feed of this._feeds.values()) {
-            if(feed.buffer.length === 0) {
-              const messages = feed.stream.read();
-              console.log('reading from feed', feed.descriptor.path, messages, feed.stream._readableState.flowing, feed.stream.readable);
-              if(!messages) continue;
-              feed.buffer.push(...messages)
-            }
-
-            console.log('processing', feed.descriptor.path)
-            let message;
-            while(message = feed.buffer.shift()) {
-              if (await this._evaluator(feed.descriptor, message)) {
-                console.log('approved')
-                process.nextTick(() => this._wakeUpReader());
-                this._needsData = false;
-                if(!this._stream.push(message)) {
-                  console.log('read ended')
-                  this._reading = false;
-                  return;
-                }
-              } else {
-                console.log('unshift', feed.descriptor.path)
-                feed.buffer.unshift(message)
-                break;
-              }
-            }
-          }
-
-          if(this._needsData && Array.from(this._feeds.values()).some(x => x.buffer.length > 0)) {
-            continue;
-          }
-          await this._hasData;
-        }
-      },
-    });
   }
 
-  get stream () { return this._stream; }
+  async _read() {
+    if(this._reading) {
+      this._needsData = true;
+      return;
+    }
+    this._reading = true;
+    this._needsData = false;
+
+    console.log('_read called')
+
+    while(true) {
+      this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
+
+      console.log('starting read cycle')
+      for (const feed of this._feeds.values()) {
+        if(feed.buffer.length === 0) {
+          const messages = feed.stream.read();
+          console.log('reading from feed', feed.descriptor.path, messages, feed.stream._readableState.flowing, feed.stream.readable);
+          if(!messages) continue;
+          feed.buffer.push(...messages)
+        }
+
+        console.log('processing', feed.descriptor.path)
+        let message;
+        while(message = feed.buffer.shift()) {
+          if (await this._evaluator(feed.descriptor, message)) {
+            console.log('approved')
+            process.nextTick(() => this._wakeUpReader());
+            this._needsData = false;
+            if(!this.push(message)) {
+              console.log('read ended')
+              this._reading = false;
+              return;
+            }
+          } else {
+            console.log('unshift', feed.descriptor.path)
+            feed.buffer.unshift(message)
+            break;
+          }
+        }
+      }
+
+      if(this._needsData && Array.from(this._feeds.values()).some(x => x.buffer.length > 0)) {
+        continue;
+      }
+      await this._hasData;
+    }
+  }
+
 
   async addInitialFeedStreams (descriptors) {
     for (const descriptor of descriptors) {

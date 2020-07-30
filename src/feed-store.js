@@ -394,7 +394,7 @@ export class FeedStore extends EventEmitter {
         reader.destroy(err);
       });
 
-    return reader.stream;
+    return reader;
   }
 
   /**
