@@ -13,7 +13,7 @@ import pEvent from 'p-event';
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
 import Reader from './reader';
-import OrderedReader from './round-robin-reader.test';
+import OrderedReader from './ordered-reader';
 
 // TODO(burdon): Change to "dxos.feedstore"?
 const STORE_NAMESPACE = '@feedstore';
