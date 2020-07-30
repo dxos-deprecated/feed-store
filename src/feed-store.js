@@ -13,6 +13,7 @@ import pEvent from 'p-event';
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
 import Reader from './reader';
+import OrderedReader from './round-robin-reader.test';
 
 // TODO(burdon): Change to "dxos.feedstore"?
 const STORE_NAMESPACE = '@feedstore';
@@ -371,6 +372,29 @@ export class FeedStore extends EventEmitter {
    */
   createReadStream (callback = () => true) {
     return this._createReadStream(callback);
+  }
+
+  createOrderedStream (evaluator) {
+    const reader = new OrderedReader(evaluator);
+
+    this._readers.add(reader);
+
+    // reader.onEnd(() => {
+    //   this._readers.delete(reader);
+    // });
+
+    this
+      ._isOpen()
+      .then(() => {
+        return reader.addInitialFeedStreams(this
+          .getDescriptors()
+          .filter(descriptor => descriptor.opened));
+      })
+      .catch(err => {
+        reader.destroy(err);
+      });
+
+    return reader.stream;
   }
 
   /**
