@@ -40,9 +40,17 @@ export default class OrderedReader {
 
     this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
 
+    this._reading = false;
     this._stream = new Readable({ 
       objectMode: true,
       read: async () => {
+        if(this._reading) {
+          this._needsData = true;
+          return;
+        }
+        this._reading = true;
+        this._needsData = false;
+
         console.log('_read called')
 
         while(true) {
@@ -62,8 +70,11 @@ export default class OrderedReader {
             while(message = feed.buffer.shift()) {
               if (await this._evaluator(feed.descriptor, message)) {
                 console.log('approved')
+                process.nextTick(() => this._wakeUpReader());
+                this._needsData = false;
                 if(!this._stream.push(message)) {
                   console.log('read ended')
+                  this._reading = false;
                   return;
                 }
               } else {
@@ -74,6 +85,9 @@ export default class OrderedReader {
             }
           }
 
+          if(this._needsData && Array.from(this._feeds.values()).some(x => x.buffer.length > 0)) {
+            continue;
+          }
           await this._hasData;
         }
       },
