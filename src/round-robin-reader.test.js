@@ -17,23 +17,6 @@ import FeedDescriptor from './feed-descriptor';
 
 const { Readable } = require('stream');
 
-class Counter extends Readable {
-  constructor (opt) {
-    super(opt);
-    this._max = 1000000;
-    this._index = 1;
-  }
-
-  _read () {
-    const i = this._index++;
-    if (i > this._max) { this.push(null); } else {
-      const str = String(i);
-      const buf = Buffer.from(str, 'ascii');
-      this.push(buf);
-    }
-  }
-}
-
 /**
  * Creates a multi ReadableStream for feed streams.
  */
@@ -44,59 +27,57 @@ export default class OrderedReader {
   /** @type {any} */
   _stream;
 
-  /** @type {Set<{ descriptor: FeedDescriptor, stream: any, message?: object }>} */
+  /** @type {Set<{ descriptor: FeedDescriptor, stream: any, buffer: any[] }>} */
   _feeds = new Set();
 
-  /** @type {() => void | undefined} */
+  /** @type {() => void} */
   _wakeUpReader;
 
+  /** @type {Promise} */
   _hasData;
 
   constructor (evaluator) {
     this._evaluator = evaluator;
 
-    this._hasData = new Promise(resolve => {
-      this._wakeUpReader = () => {
-        this._wakeUpReader = null;
-        resolve();
-      };
-    });
+    this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
 
-    this._stream = from2.obj(async (size, next) => {
-      const tryReading = async () => {
-        const toPush = [];
+    this._stream = new Readable({ 
+      objectMode: true,
+      read: async () => {
+        console.log('_read called')
 
-        this._hasData = new Promise(resolve => {
-          this._wakeUpReader = () => {
-            this._wakeUpReader = null;
-            resolve();
-          };
-        });
+        while(true) {
+          this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
 
-        for (const feed of this._feeds.values()) {
-          if (toPush.length >= size) break;
+          console.log('starting read cycle')
+          for (const feed of this._feeds.values()) {
+            if(feed.buffer.length === 0) {
+              const messages = feed.stream.read();
+              console.log('reading from feed', feed.descriptor.path, messages, feed.stream._readableState.flowing, feed.stream.readable);
+              if(!messages) continue;
+              feed.buffer.push(...messages)
+            }
 
-          const msg = feed.stream.read();
-          console.log('reading from feed', feed.descriptor.path, msg, feed.stream._readableState.flowing, feed.stream.readable);
-          if (!msg) continue;
-          if (await this._evaluator(feed.descriptor, msg)) {
-            toPush.push(msg);
-          } else {
-            feed.message = msg;
+            console.log('processing', feed.descriptor.path)
+            let message;
+            while(message = feed.buffer.shift()) {
+              if (await this._evaluator(feed.descriptor, message)) {
+                console.log('approved')
+                if(!this._stream.push(message)) {
+                  console.log('read ended')
+                  return;
+                }
+              } else {
+                console.log('unshift', feed.descriptor.path)
+                feed.buffer.unshift(message)
+                break;
+              }
+            }
           }
-        }
 
-        if (toPush.length > 0) {
-          next(null, toPush);
-          return true;
-        } else {
-          return false;
+          await this._hasData;
         }
-      };
-
-      while (!await tryReading()) {
-        await this._hasData;
-      }
+      },
     });
   }
 
@@ -119,10 +100,10 @@ export default class OrderedReader {
     stream.on('readable', () => {
       console.log('feed readable', descriptor.path);
 
-      this._wakeUpReader?.();
+      this._wakeUpReader();
     });
 
-    this._feeds.add({ descriptor, stream });
+    this._feeds.add({ descriptor, stream, buffer: [] });
   }
 }
 
@@ -165,15 +146,14 @@ test('OrderedReader', async () => {
       }
     }
   );
-  stream.on('readable', () => {
-    let message;
-    while (message = stream.read()) {
-      if (message.data.startsWith('feed2')) {
-        feed2Msgs++;
-      }
-      messages.push(message);
+
+  for await (const message of stream) {
+    if (message.data.startsWith('feed2')) {
+      feed2Msgs++;
     }
-  });
+    console.log('got', message)
+    messages.push(message);
+  }
 
   stream.on('sync', onSync);
   await new Promise(resolve => eos(stream, () => resolve()));
