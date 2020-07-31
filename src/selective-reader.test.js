@@ -38,7 +38,7 @@ test('OrderedReader', async () => {
   const messages = [];
 
   const allowedFeeds = new Set(['/feed1']);
-  const stream = feedStore.createOrderedStream(
+  const stream = feedStore.createSelectiveStream(
     async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
   );
 

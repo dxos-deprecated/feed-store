@@ -13,7 +13,7 @@ import pEvent from 'p-event';
 import FeedDescriptor from './feed-descriptor';
 import IndexDB from './index-db';
 import Reader from './reader';
-import OrderedReader from './ordered-reader';
+import SelectiveReader from './selective-reader';
 
 // TODO(burdon): Change to "dxos.feedstore"?
 const STORE_NAMESPACE = '@feedstore';
@@ -378,8 +378,8 @@ export class FeedStore extends EventEmitter {
    *
    * @param {(feedDescriptor: FeedDescriptor, message: object) => Promise<boolean>} evaluator
    */
-  createOrderedStream (evaluator) {
-    const reader = new OrderedReader(evaluator);
+  createSelectiveStream (evaluator) {
+    const reader = new SelectiveReader(evaluator);
 
     this._readers.add(reader);
 
