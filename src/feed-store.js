@@ -383,10 +383,6 @@ export class FeedStore extends EventEmitter {
 
     this._readers.add(reader);
 
-    // reader.onEnd(() => {
-    //   this._readers.delete(reader);
-    // });
-
     this
       ._isOpen()
       .then(() => {
