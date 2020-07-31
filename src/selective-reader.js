@@ -99,6 +99,7 @@ export default class SelectiveReader extends Readable {
       // console.log('feed readable', descriptor.path);
 
       this._wakeUpReader();
+      this._read();
     });
 
     this._feeds.add({ descriptor, stream, buffer: [] });

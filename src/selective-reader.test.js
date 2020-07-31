@@ -28,36 +28,73 @@ async function generateStreamData (feedStore, maxMessages = 200) {
   return [feed1, feed2];
 }
 
-test('OrderedReader', async () => {
-  const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+describe('SelectiveReader', () => {
+  test('two feeds', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
-  const MESSAGE_COUNT = 10;
+    const MESSAGE_COUNT = 10;
 
-  const [feed1] = await generateStreamData(feedStore, MESSAGE_COUNT);
+    const [feed1] = await generateStreamData(feedStore, MESSAGE_COUNT);
 
-  const messages = [];
+    const messages = [];
 
-  const allowedFeeds = new Set(['/feed1']);
-  const stream = feedStore.createSelectiveStream(
-    async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
-  );
+    const allowedFeeds = new Set(['/feed1']);
+    const stream = feedStore.createSelectiveStream(
+      async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
+    );
 
-  stream.on('data', message => {
-    messages.push(message);
-    if (message.data.startsWith('allow-')) {
-      allowedFeeds.add(message.data.slice(6));
-    }
+    stream.on('data', message => {
+      messages.push(message);
+      if (message.data.startsWith('allow-')) {
+        allowedFeeds.add(message.data.slice(6));
+      }
+    });
+
+    // only feed1 messages should be here at this point
+    await waitForExpect(async () => {
+      expect(messages.length === MESSAGE_COUNT);
+      expect(messages.every(msg => msg.data.startsWith('feed1')));
+    });
+
+    await append(feed1, 'allow-/feed2');
+
+    await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2 + 1));
+
+    // TODO(marik-d): Test for sync events
   });
 
-  // only feed1 messages should be here at this point
-  await waitForExpect(async () => {
-    expect(messages.length === MESSAGE_COUNT);
-    expect(messages.every(msg => msg.data.startsWith('feed1')));
+  test('feed is added later', async () => {
+    const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
+
+    const MESSAGE_COUNT = 10;
+
+    await generateStreamData(feedStore, MESSAGE_COUNT);
+
+    const messages = [];
+
+    const allowedFeeds = new Set(['/feed1']);
+    const stream = feedStore.createSelectiveStream(
+      async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
+    );
+
+    stream.on('data', message => {
+      messages.push(message);
+      if (message.data.startsWith('allow-')) {
+        allowedFeeds.add(message.data.slice(6));
+      }
+    });
+
+    // only feed1 messages should be here at this point
+    await waitForExpect(async () => {
+      expect(messages.length === MESSAGE_COUNT);
+      expect(messages.every(msg => msg.data.startsWith('feed1')));
+    });
+
+    const feed = await feedStore.openFeed('/feed3');
+    await append(feed, 'allow-/feed2');
+
+    await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2 + 1));
+
+    // TODO(marik-d): Test for sync events
   });
-
-  await append(feed1, 'allow-/feed2');
-
-  await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2 + 1));
-
-  // TODO(marik-d): Test for sync events
 });
