@@ -72,7 +72,7 @@ describe('SelectiveReader', () => {
 
     const messages = [];
 
-    const allowedFeeds = new Set(['/feed1']);
+    const allowedFeeds = new Set(['/feed1', '/feed3']);
     const stream = feedStore.createSelectiveStream(
       async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
     );
