@@ -45,42 +45,30 @@ test('OrderedReader', async () => {
 
   const [feed1, feed2] = await generateStreamData(feedStore, MESSAGE_COUNT);
 
-  const onSync = jest.fn();
   const messages = [];
 
-  const feedCounters = {}
+  const allowedFeeds = new Set(['/feed1'])
   const stream = feedStore.createOrderedStream(
-    async (feedDescriptor, message) => {
-      if (message.data.startsWith('feed2')) {
-        return true;
-      } else {
-        return feedCounters['feed2'] >= MESSAGE_COUNT;
-      }
-    }
+    async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
   );
 
   stream.on('data', message => {
-    feedCounters[message.data.slice(0, 5)] = (feedCounters[message.data.slice(0, 5)] ?? 0) + 1
     messages.push(message);
+    if(message.data.startsWith('allow-')) {
+      allowedFeeds.add(message.data.slice(6));
+    }
   })
 
-  stream.on('sync', onSync);
 
-  await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2))
-  
+  // only feed1 messages should be here at this point
+  await waitForExpect(async () => {
+    expect(messages.length === MESSAGE_COUNT);
+    expect(messages.every(msg => msg.data.startsWith('feed1')))
+  })
 
+  await append(feed1, 'allow-/feed2')
 
-  // order test
-  messages.slice(0, MESSAGE_COUNT).forEach(msg => {
-    expect(msg.data.startsWith('feed2')).toBe(true);
-  });
+  await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2 + 1))
 
-  // sync test
-  // const syncMessages = messages.filter(m => m.sync);
-  // expect(syncMessages.length).toBe(1);
-  // expect(syncMessages[0].key).toEqual(feed1.key);
-  // expect(onSync).toHaveBeenCalledTimes(1);
-  // expect(onSync).toHaveBeenCalledWith({
-  //   [feed1.key.toString('hex')]: 19
-  // });
+  // TODO(marik-d): Test for sync events
 });

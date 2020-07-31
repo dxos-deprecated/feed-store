@@ -50,47 +50,47 @@ export default class OrderedReader extends Readable {
     this._reading = true;
     this._needsData = false;
 
-    // console.log('_read called')
-
-    while(true) {
-      this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
-
-      // console.log('starting read cycle')
-      for (const feed of this._feeds.values()) {
-        if(feed.buffer.length === 0) {
-          const messages = feed.stream.read();
-          // console.log('reading from feed', feed.descriptor.path, messages, feed.stream._readableState.flowing, feed.stream.readable);
-          if(!messages) continue;
-          feed.buffer.push(...messages)
-        }
-
-        // console.log('processing', feed.descriptor.path)
-        let message;
-        while(message = feed.buffer.shift()) {
-          if (await this._evaluator(feed.descriptor, message)) {
-            // console.log('approved')
-            process.nextTick(() => this._wakeUpReader());
-            this._needsData = false;
-            if(!this.push(message)) {
-              // console.log('read ended')
-              this._reading = false;
-              return;
-            }
-          } else {
-            // console.log('unshift', feed.descriptor.path)
-            feed.buffer.unshift(message)
-            break;
-          }
-        }
-      }
-
-      if(this._needsData && Array.from(this._feeds.values()).some(x => x.buffer.length > 0)) {
-        continue;
-      }
-      await this._hasData;
-    }
+    this._pollFeeds();
   }
 
+  async _pollFeeds() {
+    this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
+
+    for (const feed of this._feeds.values()) {
+      if(feed.buffer.length === 0) {
+        const messages = feed.stream.read();
+        // console.log('reading from feed', feed.descriptor.path, messages, feed.stream._readableState.flowing, feed.stream.readable);
+        if(!messages) continue;
+        feed.buffer.push(...messages)
+      }
+
+      // console.log('processing', feed.descriptor.path)
+      let message;
+      while(message = feed.buffer.shift()) {
+        if (await this._evaluator(feed.descriptor, message)) {
+          // console.log('approved')
+          process.nextTick(() => this._wakeUpReader());
+          this._needsData = false;
+          if(!this.push(message)) {
+            // console.log('read ended')
+            this._reading = false;
+            return;
+          }
+        } else {
+          // console.log('unshift', feed.descriptor.path)
+          feed.buffer.unshift(message)
+          break;
+        }
+      }
+    }
+
+    if(this._needsData && Array.from(this._feeds.values()).some(x => x.buffer.length > 0)) {
+      setTimeout(() => this._pollFeeds(), 0);
+    } else {
+      await this._hasData;
+      setTimeout(() => this._pollFeeds(), 0);
+    }
+  }
 
   async addInitialFeedStreams (descriptors) {
     for (const descriptor of descriptors) {
