@@ -374,6 +374,10 @@ export class FeedStore extends EventEmitter {
     return this._createReadStream(callback);
   }
 
+  /**
+   * 
+   * @param {(feedDescriptor: FeedDescriptor, message: object) => Promise<boolean>} evaluator 
+   */
   createOrderedStream (evaluator) {
     const reader = new OrderedReader(evaluator);
 

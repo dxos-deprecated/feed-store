@@ -15,6 +15,7 @@ import createBatchStream from './create-batch-stream';
 import { FeedStore } from './feed-store';
 import FeedDescriptor from './feed-descriptor';
 import OrderedReader from './ordered-reader';
+import waitForExpect from 'wait-for-expect';
 
 function append (feed, message) {
   return pify(feed.append.bind(feed))(message);
@@ -38,8 +39,6 @@ async function generateStreamData (feedStore, maxMessages = 200) {
 }
 
 test('OrderedReader', async () => {
-  console.log("TEST STARTED")
-
   const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
 
   const MESSAGE_COUNT = 10;
@@ -52,7 +51,6 @@ test('OrderedReader', async () => {
   const feedCounters = {}
   const stream = feedStore.createOrderedStream(
     async (feedDescriptor, message) => {
-      console.log('evaluate', { message, feedCounters })
       if (message.data.startsWith('feed2')) {
         return true;
       } else {
@@ -61,21 +59,16 @@ test('OrderedReader', async () => {
     }
   );
 
-  for await (const message of stream) {
+  stream.on('data', message => {
     feedCounters[message.data.slice(0, 5)] = (feedCounters[message.data.slice(0, 5)] ?? 0) + 1
-    console.log('got', { message, feedCounters })
     messages.push(message);
-    if(Object.values(feedCounters).length === 2 && Object.values(feedCounters).every(x => x == MESSAGE_COUNT)) {
-      console.log('END')
-      break;
-    }
-  }
+  })
 
   stream.on('sync', onSync);
 
-  expect(messages.length).toBe(MESSAGE_COUNT * 2);
+  await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2))
+  
 
-  console.log(messages);
 
   // order test
   messages.slice(0, MESSAGE_COUNT).forEach(msg => {
