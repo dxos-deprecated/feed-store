@@ -27,7 +27,10 @@ export default class SelectiveReader extends Readable {
     super({ objectMode: true });
 
     this._evaluator = evaluator;
+    this._resetDataLock();
+  }
 
+  _resetDataLock () {
     this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
   }
 
@@ -40,7 +43,7 @@ export default class SelectiveReader extends Readable {
     this._needsData = false;
 
     while (true) {
-      this._hasData = new Promise(resolve => { this._wakeUpReader = resolve; });
+      this._resetDataLock();
 
       for (const feed of this._feeds.values()) {
         if (feed.buffer.length === 0) {
@@ -66,6 +69,7 @@ export default class SelectiveReader extends Readable {
       }
 
       await new Promise(resolve => setTimeout(resolve, 0)); // yield so that other tasks can be processed
+
       if (this._needsData && Array.from(this._feeds.values()).some(x => x.buffer.length > 0)) {
         continue;
       }
