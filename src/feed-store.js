@@ -375,8 +375,8 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
-   * 
-   * @param {(feedDescriptor: FeedDescriptor, message: object) => Promise<boolean>} evaluator 
+   *
+   * @param {(feedDescriptor: FeedDescriptor, message: object) => Promise<boolean>} evaluator
    */
   createOrderedStream (evaluator) {
     const reader = new OrderedReader(evaluator);
