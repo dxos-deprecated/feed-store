@@ -92,8 +92,6 @@ export default class SelectiveReader extends Readable {
     const stream = createBatchStream(descriptor.feed, { live: true });
 
     stream.on('readable', () => {
-      // console.log('feed readable', descriptor.path);
-
       this._wakeUpReader();
       this._read();
     });
