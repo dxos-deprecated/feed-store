@@ -102,18 +102,18 @@ describe('SelectiveReader', () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
     const readingFeed = await feedStore.openFeed('/feed1');
     const ignoredFeed = await feedStore.openFeed('/feed2');
-    for(let i = 0; i < 10_000; i++){
-      await append(ignoredFeed, `msg-${i}`)
+    for (let i = 0; i < 10_000; i++) {
+      await append(ignoredFeed, `msg-${i}`);
     }
-    await append(readingFeed, `message`)
+    await append(readingFeed, 'message');
 
     const stream = feedStore.createSelectiveStream(
-      async (feedDescriptor, message) => feedDescriptor.path == '/feed1',
+      async (feedDescriptor, message) => feedDescriptor.path === '/feed1'
     );
-    const messages = []
+    const messages = [];
     stream.on('data', message => {
       messages.push(message);
-    })
+    });
     await waitForExpect(async () => {
       expect(messages.length === 1);
       expect(messages[0].data).toEqual('message');

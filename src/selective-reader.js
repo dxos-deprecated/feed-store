@@ -22,7 +22,7 @@ export default class SelectiveReader extends Readable {
   _hasData;
 
   /**
-   * A guard to ensure `_read` is only executing once at a given time. 
+   * A guard to ensure `_read` is only executing once at a given time.
    */
   _reading = false;
 
@@ -87,7 +87,7 @@ export default class SelectiveReader extends Readable {
       }
 
       // Yield so that other tasks can be processed,
-      await new Promise(resolve => setTimeout(resolve, 0)); 
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // If we need to push more data and have them in the buffer, attempt to do the processing again.
       // TODO(marik-d): Can this cause an infitine loop?
@@ -121,4 +121,3 @@ export default class SelectiveReader extends Readable {
     this._feeds.add({ descriptor, stream, buffer: [] });
   }
 }
- 
