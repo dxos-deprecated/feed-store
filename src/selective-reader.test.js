@@ -83,16 +83,22 @@ describe('SelectiveReader', () => {
     const messages = [];
 
     const allowedFeeds = new Set(['/feed1', '/feed3']);
-    const stream = feedStore.createSelectiveStream(
+    const iterable = feedStore.createSelectiveStream(
       async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
     );
 
-    stream.on('data', message => {
-      messages.push(message);
-      if (message.data.startsWith('allow-')) {
-        allowedFeeds.add(message.data.slice(6));
+    setTimeout(async () => {
+      for await(const message of iterable) {
+        console.log(message)
+        messages.push(message);
+        if (message.data.startsWith('allow-')) {
+          allowedFeeds.add(message.data.slice(6));
+        }
+        if(messages.length === MESSAGE_COUNT * 2 + 1) {
+          break;
+        }
       }
-    });
+    })
 
     // only feed1 messages should be here at this point
     await waitForExpect(async () => {
@@ -112,18 +118,27 @@ describe('SelectiveReader', () => {
     const feedStore = await FeedStore.create(ram, { feedOptions: { valueEncoding: 'utf-8' } });
     const readingFeed = await feedStore.openFeed('/feed1');
     const ignoredFeed = await feedStore.openFeed('/feed2');
+    
+
+    const iterable = feedStore.createSelectiveStream(
+      async (feedDescriptor, message) => feedDescriptor.path === '/feed1'
+    );
+    const messages = [];
+
     for (let i = 0; i < 10_000; i++) {
       await append(ignoredFeed, `msg-${i}`);
     }
     await append(readingFeed, 'message');
 
-    const stream = feedStore.createSelectiveStream(
-      async (feedDescriptor, message) => feedDescriptor.path === '/feed1'
-    );
-    const messages = [];
-    stream.on('data', message => {
-      messages.push(message);
-    });
+    setTimeout(async () => {
+      for await(const message of iterable) {
+        console.log(message)
+        messages.push(message);
+        if (messages.length === 1) {
+          break;
+        }
+      }
+    })
     await waitForExpect(async () => {
       expect(messages.length === 1);
       expect(messages[0].data).toEqual('message');
