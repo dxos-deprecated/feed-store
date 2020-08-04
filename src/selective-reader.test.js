@@ -39,12 +39,12 @@ describe('SelectiveReader', () => {
     const messages = [];
 
     const allowedFeeds = new Set(['/feed1']);
-    const stream = feedStore.createSelectiveStream(
+    const iterable = feedStore.createSelectiveStream(
       async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
     );
 
     setTimeout(async () => {
-      for await(const message of stream) {
+      for await(const message of iterable) {
         console.log(message)
         messages.push(message);
         if (message.data.startsWith('allow-')) {
@@ -70,6 +70,7 @@ describe('SelectiveReader', () => {
     await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2 + 1));
 
     // TODO(marik-d): Test for sync events
+    console.log('TEST END')
   });
 
   test('feed is added later', async () => {
