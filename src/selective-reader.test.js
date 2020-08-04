@@ -43,19 +43,28 @@ describe('SelectiveReader', () => {
       async (feedDescriptor, message) => allowedFeeds.has(feedDescriptor.path)
     );
 
-    stream.on('data', message => {
-      messages.push(message);
-      if (message.data.startsWith('allow-')) {
-        allowedFeeds.add(message.data.slice(6));
+    setTimeout(async () => {
+      for await(const message of stream) {
+        console.log(message)
+        messages.push(message);
+        if (message.data.startsWith('allow-')) {
+          allowedFeeds.add(message.data.slice(6));
+        }
+        if(messages.length === MESSAGE_COUNT * 2 + 1) {
+          break;
+        }
       }
-    });
+    })
+    console.log('asserting')
 
     // only feed1 messages should be here at this point
     await waitForExpect(async () => {
+      console.log('TEST')
       expect(messages.length === MESSAGE_COUNT);
       expect(messages.every(msg => msg.data.startsWith('feed1')));
     });
 
+    console.log('ALLOW feed 2')
     await append(feed1, 'allow-/feed2');
 
     await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2 + 1));
