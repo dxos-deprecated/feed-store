@@ -4,4 +4,4 @@
 
 require('source-map-support').install();
 
-module.exports = require('./dist/index');
+module.exports = require('./dist/src/index');
