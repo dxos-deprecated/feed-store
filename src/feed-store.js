@@ -369,7 +369,7 @@ export class FeedStore extends EventEmitter {
   }
 
   /**
-   *
+   * @returns {AsyncGenerator}
    * @param {(feedDescriptor: FeedDescriptor, message: object) => Promise<boolean>} evaluator
    */
   createSelectiveStream (evaluator) {
