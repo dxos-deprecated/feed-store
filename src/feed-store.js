@@ -47,10 +47,10 @@ export class FeedStore extends EventEmitter {
    * @static
    * @param {RandomAccessStorage} storage RandomAccessStorage to use by default by the feeds.
    * @param {Object} options
-   * @param {Hypertrie} options.database Defines a custom hypertrie database to index the feeds.
-   * @param {Object} options.feedOptions Default options for each feed.
-   * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
-   * @param {Hypercore} options.hypercore Hypercore class to use.
+   * @param {Hypertrie=} options.database Defines a custom hypertrie database to index the feeds.
+   * @param {Object=} options.feedOptions Default options for each feed.
+   * @param {Object=} options.codecs Defines a list of available codecs to work with the feeds.
+   * @param {Hypercore=} options.hypercore Hypercore class to use.
    * @returns {Promise<FeedStore>}
    * @deprecated
    */
@@ -65,10 +65,10 @@ export class FeedStore extends EventEmitter {
    *
    * @param {RandomAccessStorage} storage RandomAccessStorage to use by default by the feeds.
    * @param {Object} options
-   * @param {function} options.database Defines a custom hypertrie database to index the feeds.
-   * @param {Object} options.feedOptions Default options for each feed.
-   * @param {Object} options.codecs Defines a list of available codecs to work with the feeds.
-   * @param {Hypercore} options.hypercore Hypercore class to use.
+   * @param {function=} options.database Defines a custom hypertrie database to index the feeds.
+   * @param {Object=} options.feedOptions Default options for each feed.
+   * @param {Object=} options.codecs Defines a list of available codecs to work with the feeds.
+   * @param {Hypercore=} options.hypercore Hypercore class to use.
    */
   constructor (storage, options = {}) {
     assert(storage, 'The storage is required.');
