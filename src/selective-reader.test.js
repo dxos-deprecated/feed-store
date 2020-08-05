@@ -45,7 +45,7 @@ describe('SelectiveReader', () => {
 
     setTimeout(async () => {
       for await(const message of iterable) {
-        console.log(message)
+        //console.log(message)
         messages.push(message);
         if (message.data.startsWith('allow-')) {
           allowedFeeds.add(message.data.slice(6));
@@ -55,22 +55,22 @@ describe('SelectiveReader', () => {
         }
       }
     })
-    console.log('asserting')
+    //console.log('asserting')
 
     // only feed1 messages should be here at this point
     await waitForExpect(async () => {
-      console.log('TEST')
+      //console.log('TEST')
       expect(messages.length === MESSAGE_COUNT);
       expect(messages.every(msg => msg.data.startsWith('feed1')));
     });
 
-    console.log('ALLOW feed 2')
+    //console.log('ALLOW feed 2')
     await append(feed1, 'allow-/feed2');
 
     await waitForExpect(() => expect(messages.length).toBe(MESSAGE_COUNT * 2 + 1));
 
     // TODO(marik-d): Test for sync events
-    console.log('TEST END')
+    //console.log('TEST END')
   });
 
   test('feed is added later', async () => {
@@ -89,7 +89,7 @@ describe('SelectiveReader', () => {
 
     setTimeout(async () => {
       for await(const message of iterable) {
-        console.log(message)
+        //console.log(message)
         messages.push(message);
         if (message.data.startsWith('allow-')) {
           allowedFeeds.add(message.data.slice(6));
@@ -132,7 +132,7 @@ describe('SelectiveReader', () => {
 
     setTimeout(async () => {
       for await(const message of iterable) {
-        console.log(message)
+        //console.log(message)
         messages.push(message);
         if (messages.length === 1) {
           break;

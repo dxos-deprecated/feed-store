@@ -92,7 +92,7 @@ class CombinedAsyncIterator {
    * @returns {Promise<{ done: false, value: any }>}
    */
   async next() {
-    console.log('CombinedAsyncIterator.next', this._queue.length)
+    // console.log('CombinedAsyncIterator.next', this._queue.length)
     if(this._error) {
       throw this._error;
     }
@@ -105,7 +105,7 @@ class CombinedAsyncIterator {
       this._pollResolve = { 
         resolve: () => {
           this._pollResolve = undefined;
-          console.log('CombinedAsyncIterator.next unfreeze descritors')
+          // console.log('CombinedAsyncIterator.next unfreeze descritors')
           for(const descriptor of this._iterators) {
             descriptor.frozen = false;
           }
@@ -130,14 +130,14 @@ class CombinedAsyncIterator {
     descriptor.iterator.next()
       .then(result => {
         if(result.done) {
-          console.log('CombinedAsyncIterator._pollIterator remove descriptor')
+          // console.log('CombinedAsyncIterator._pollIterator remove descriptor')
           this._iterators = this._iterators.filter(x => x !== descriptor);
         } else if(result.value === null) {
-          console.log('CombinedAsyncIterator._pollIterator freeze descriptor')
+          // console.log('CombinedAsyncIterator._pollIterator freeze descriptor')
           descriptor.running = false;
           descriptor.frozen = true;
         } else {
-          console.log('CombinedAsyncIterator._pollIterator push from descriptor')
+          // console.log('CombinedAsyncIterator._pollIterator push from descriptor')
           descriptor.running = false;
           this._queue.push(result.value);
           this._pollResolve?.resolve();
