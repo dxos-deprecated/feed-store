@@ -3,3 +3,4 @@
 //
 
 export * from './feed-store';
+export * from './feed-descriptor';

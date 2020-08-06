@@ -18,7 +18,7 @@ import Locker from './locker';
  *
  * Abstract handler for an Hypercore instance.
  */
-class FeedDescriptor {
+export class FeedDescriptor {
   /**
    * constructor
    *
