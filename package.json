@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/dxos/feed-store.git"
   },
-  "license": "GPL-3.0",
+  "license": "AGPLv3",
   "files": [
     "dist",
     "src",
